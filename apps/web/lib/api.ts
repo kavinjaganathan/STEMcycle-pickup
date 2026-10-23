@@ -21,6 +21,7 @@ const APP_ERRORS: Record<string, string> = {
   email_exists: "Someone with that email already has an account.",
   plan_not_draft: "Only draft plans can be published.",
   invalid_location: "That location isn't valid.",
+  pickup_cancelled: "The resident cancelled this pickup.",
   stop_not_yours: "That stop isn't on your route.",
 };
 

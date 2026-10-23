@@ -3,8 +3,8 @@
 Web app for scheduling doorstep pickups of used textbooks in Frisco, Plano, McKinney
 and nearby cities. The books are donated to rural communities.
 
-**Status:** Phases 1–4 of 6 are done: the resident request form, emails and cancel
-links, the admin dashboard, geocoding, and route planning.
+**Status:** Phases 1–5 of 6 are done: the resident request form, emails and cancel
+links, the admin dashboard, geocoding, route planning, and the driver view.
 
 ## Repo layout
 
@@ -156,6 +156,21 @@ SOLVER_SECRET=dev .venv/bin/uvicorn app:app --port 8000
 
 Without a solver, local planning uses the fallback. Set `ROUTING_PROVIDER=fake`
 to plan with made-up travel times when offline (local only).
+
+## Driver view (`/driver`)
+
+Drivers sign in on their phone and see **only their own published routes**. This
+is enforced by row-level security in the database.
+
+- **Each stop shows:** ETA, pickup window, address, book count, the resident's
+  name, phone (tap to call) and notes. Residents' emails are not shown to drivers.
+- **Navigation:** **Google Maps** and **Apple Maps** buttons for each stop, plus a
+  link that navigates through the next stops.
+- **Picking up:** **Mark picked up** updates the admin dashboard straight away.
+  Mistakes can be undone. Stops cancelled by the resident show as "skip".
+- **No signal:** the last loaded list stays on screen. Taps are queued on the phone
+  (stop IDs only) and sync automatically when the connection returns.
+- **Other days:** a date picker shows upcoming routes.
 
 ## Privacy and security notes
 

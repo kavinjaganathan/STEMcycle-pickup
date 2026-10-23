@@ -451,6 +451,12 @@ function PlanView({
                     <p>
                       <span className="font-semibold">ETA {formatTime(s.eta)}</span> · {s.name} ·{" "}
                       {s.book_count} books
+                      {s.status === "picked_up" && (
+                        <span className="ml-1 font-semibold text-brand">· ✓ picked up</span>
+                      )}
+                      {s.status === "cancelled" && (
+                        <span className="ml-1 font-semibold text-danger">· cancelled</span>
+                      )}
                     </p>
                     <p className="text-muted">
                       {s.address_line}, {s.city} · window {formatWindow(s)}
