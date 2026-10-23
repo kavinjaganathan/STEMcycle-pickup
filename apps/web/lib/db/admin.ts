@@ -72,6 +72,86 @@ export type OrgSettings = {
   default_start_time: string;
 };
 
+export type PlanStop = {
+  id: string;
+  seq: number;
+  eta: string;
+  depart: string;
+  pickup_id: string;
+  name: string;
+  address_line: string;
+  city: string;
+  zip: string;
+  book_count: number;
+  status: PickupStatus;
+  lat: number;
+  lng: number;
+  start_time: string;
+  end_time: string;
+};
+
+export type PlanRoute = {
+  id: string;
+  vehicle_id: string | null;
+  vehicle_name: string;
+  color: string;
+  driver_id: string | null;
+  driver_name: string | null;
+  start_at: string;
+  end_at: string;
+  total_seconds: number;
+  total_meters: number | null;
+  total_books: number;
+  geometry: [number, number][];
+  stops: PlanStop[];
+};
+
+export type RoutePlan = {
+  id: string;
+  plan_date: string;
+  status: "draft" | "published";
+  solver: "ortools" | "fallback";
+  matrix_provider: string;
+  start_time: string;
+  created_at: string;
+  published_at: string | null;
+  has_published: boolean;
+  start_depot: { id: string; name: string; lat: number; lng: number } | null;
+  end_depot: { id: string; name: string; lat: number; lng: number } | null;
+  routes: PlanRoute[];
+  unassigned: {
+    pickup_id: string;
+    name: string;
+    address_line: string;
+    city: string;
+    book_count: number;
+    reason: string;
+  }[];
+};
+
+export type SavePlanInput = {
+  plan_date: string;
+  start_depot_id: string;
+  end_depot_id: string;
+  start_time: string;
+  solver: "ortools" | "fallback";
+  matrix_provider: string;
+  unassigned: { pickup_id: string; reason: string }[];
+  routes: {
+    vehicle_id: string;
+    driver_id: string | null;
+    vehicle_name: string;
+    color: string;
+    start_at: string;
+    end_at: string;
+    total_seconds: number;
+    total_meters: number | null;
+    total_books: number;
+    geometry: [number, number][];
+    stops: { pickup_id: string; seq: number; eta: string; depart: string }[];
+  }[];
+};
+
 /** Typed wrappers for the admin SQL functions; `rpc` must run as the signed-in user. */
 export function createAdminApi(rpc: Rpc) {
   return {
@@ -126,6 +206,13 @@ export function createAdminApi(rpc: Rpc) {
         p_phone: u.phone ?? "",
         p_active: u.active,
       }),
+
+    saveRoutePlan: async (plan: SavePlanInput) =>
+      (await rpc("admin_save_route_plan", { p: plan })) as { id: string },
+    getRoutePlan: async (date: string) =>
+      ((await rpc("admin_get_route_plan", { p_date: date })) ?? null) as RoutePlan | null,
+    publishRoutePlan: (id: string) => rpc("admin_publish_route_plan", { p_id: id }),
+    discardRoutePlan: (id: string) => rpc("admin_discard_route_plan", { p_id: id }),
 
     getSettings: async () => (await rpc("admin_get_settings")) as OrgSettings,
     updateSettings: (s: OrgSettings) => rpc("admin_update_settings", { p: s }),

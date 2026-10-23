@@ -33,6 +33,10 @@ export async function bookPickup(
     ? slots.find((s: { id: string }) => s.id === overrides.slot_id)
     : slots[0];
   const res = await request.post("/api/pickups", {
+    // Distinct client per booking so tests don't hit the per-IP rate limit.
+    headers: {
+      "X-Forwarded-For": `10.0.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`,
+    },
     data: {
       name: "Grace Hopper",
       email: `grace-${Date.now()}@example.com`,

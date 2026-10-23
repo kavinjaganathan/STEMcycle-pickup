@@ -29,6 +29,8 @@ export default defineConfig({
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: "",
       TURNSTILE_SECRET_KEY: "",
       GEOCODER: "fake",
+      ROUTING_PROVIDER: "fake",
+      SOLVER_URL: "",
     },
   },
 });

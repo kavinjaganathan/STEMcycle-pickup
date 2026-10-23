@@ -3,13 +3,14 @@
 Web app for scheduling doorstep pickups of used textbooks in Frisco, Plano, McKinney
 and nearby cities. The books are donated to rural communities.
 
-**Status:** Phases 1–3 of 6 are done: the resident request form, emails and cancel
-links, the admin dashboard, and geocoding.
+**Status:** Phases 1–4 of 6 are done: the resident request form, emails and cancel
+links, the admin dashboard, geocoding, and route planning.
 
 ## Repo layout
 
 ```
-apps/web/              Next.js 16 app (form, API, later admin + driver views)
+apps/web/              Next.js 16 app (public form, admin dashboard, driver view, API)
+services/solver/       Python FastAPI + OR-Tools route solver (deployed to Render)
   app/                 pages and API route handlers
   components/          UI components
   lib/                 db access, validation, email, security, logging
@@ -118,6 +119,43 @@ Addresses are turned into map coordinates with the free
   coordinates without network calls.
 - **Contact address:** Nominatim's usage policy asks for a contact address in the
   User-Agent. Set `NOMINATIM_CONTACT_EMAIL`; it defaults to `EMAIL_FROM`.
+
+## Route planning (`/admin/routes`)
+
+1. **Choose the plan.** Pick a date, start and end depot, departure time, and which
+   vehicles and drivers to use.
+2. **Get travel times.** The app fetches real road travel times between every stop
+   from **OpenRouteService** (needs a free `ORS_API_KEY`). If that fails it uses the
+   public **OSRM** server. It never falls back to straight-line distance; if both
+   fail it shows an error.
+3. **Solve.** The problem goes to the **OR-Tools** service (`SOLVER_URL` +
+   `SOLVER_SECRET`): a vehicle routing problem with time windows (the pickup
+   windows), vehicle capacity (books) and max route duration. Service time per stop
+   is set in Settings.
+4. **Fallback.** If the solver is unreachable or returns something invalid, a
+   built-in planner runs instead: nearest neighbour, then 2-opt, then cheapest
+   insertion of leftover stops. It respects the same constraints, and the UI says
+   which planner was used.
+5. **Review and publish.** Each plan is saved as a **draft** with a map, stop order,
+   ETAs, and the stops that couldn't be scheduled (with a reason). **Publish** makes
+   it visible to drivers and marks those pickups *scheduled*. Publishing a newer plan
+   replaces the old one.
+
+The solver service receives only travel-time matrices and numbers, never addresses
+or names.
+
+**Running the solver locally:**
+
+```bash
+cd services/solver
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest -q
+SOLVER_SECRET=dev .venv/bin/uvicorn app:app --port 8000
+# then in apps/web/.env.local: SOLVER_URL=http://localhost:8000  SOLVER_SECRET=dev
+```
+
+Without a solver, local planning uses the fallback. Set `ROUTING_PROVIDER=fake`
+to plan with made-up travel times when offline (local only).
 
 ## Privacy and security notes
 

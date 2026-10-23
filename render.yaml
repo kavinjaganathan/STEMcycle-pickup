@@ -1,0 +1,13 @@
+# Render Blueprint for the route solver (free web service).
+services:
+  - type: web
+    name: stemcycle-solver
+    runtime: docker
+    plan: free
+    rootDir: services/solver
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SOLVER_SECRET
+        generateValue: true
