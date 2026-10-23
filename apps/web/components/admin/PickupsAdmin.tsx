@@ -65,6 +65,18 @@ export function PickupsAdmin() {
     }
   }
 
+  async function locate(p: AdminPickup) {
+    setBusyId(p.id);
+    try {
+      await api(`/api/admin/pickups/${p.id}/geocode`, { method: "POST" });
+      await load();
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   function toggleStatus(s: PickupStatus) {
     setStatuses((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
   }
@@ -175,6 +187,7 @@ export function PickupsAdmin() {
                     busy={busyId === p.id}
                     onStatus={(s) => setStatus(p, s)}
                     onFixLocation={() => setFixing(p)}
+                    onLocate={() => locate(p)}
                   />
                 </li>
               ))}
@@ -202,11 +215,13 @@ function PickupRow({
   busy,
   onStatus,
   onFixLocation,
+  onLocate,
 }: {
   p: AdminPickup;
   busy: boolean;
   onStatus: (s: PickupStatus) => void;
   onFixLocation: () => void;
+  onLocate: () => void;
 }) {
   const open = p.status === "pending" || p.status === "scheduled";
   return (
@@ -230,6 +245,11 @@ function PickupRow({
           <p className="text-sm text-muted">About {p.book_count} books</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {p.geocode_status === "pending" && open && (
+            <Button size="sm" disabled={busy} onClick={onLocate}>
+              Locate
+            </Button>
+          )}
           {(p.geocode_status === "needs_review" || p.geocode_status === "failed") && (
             <Button size="sm" onClick={onFixLocation}>
               Fix location

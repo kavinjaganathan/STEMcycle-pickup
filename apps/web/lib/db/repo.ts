@@ -48,6 +48,9 @@ export type CancelResult = {
   result: "cancelled" | "not_found" | "already_cancelled" | "already_picked_up";
 };
 
+export type PickupAddress = { id: string; address_line: string; city: string; zip: string };
+export type GeoPoint = { lat: number; lng: number; quality: "exact" | "approximate" };
+
 export function createRepo(rpc: Rpc) {
   return {
     getPublicSettings: async () => (await rpc("get_public_settings")) as PublicSettings,
@@ -86,6 +89,41 @@ export function createRepo(rpc: Rpc) {
 }
 
 export type Repo = ReturnType<typeof createRepo>;
+
+export function createGeocodeRepo(rpc: Rpc) {
+  return {
+    reserve: async (intervalMs: number) =>
+      (await rpc("geocode_reserve", { p_interval_ms: intervalMs })) as number,
+    cacheGet: async (hash: string) =>
+      ((await rpc("geocode_cache_get", { p_hash: hash })) ?? null) as GeoPoint | null,
+    cachePut: async (hash: string, p: GeoPoint) => {
+      await rpc("geocode_cache_put", {
+        p_hash: hash,
+        p_lat: p.lat,
+        p_lng: p.lng,
+        p_quality: p.quality,
+      });
+    },
+    pickupAddress: async (id: string) =>
+      ((await rpc("pickup_address", { p_id: id })) ?? null) as PickupAddress | null,
+    pendingPickups: async (limit: number) =>
+      (await rpc("pickups_pending_geocode", { p_limit: limit })) as PickupAddress[],
+    setPickupGeocode: async (
+      id: string,
+      status: "pending" | "ok" | "needs_review" | "failed",
+      point: { lat: number; lng: number } | null,
+    ) => {
+      await rpc("set_pickup_geocode", {
+        p_id: id,
+        p_status: status,
+        p_lat: point?.lat ?? null,
+        p_lng: point?.lng ?? null,
+      });
+    },
+  };
+}
+
+export type GeocodeRepo = ReturnType<typeof createGeocodeRepo>;
 
 /**
  * Error from a database function. `code` is the SQLSTATE; for business-rule

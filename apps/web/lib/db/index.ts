@@ -3,23 +3,39 @@ import path from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
-import { createRepo, pgRpc, toRpcError, type Repo, type Rpc } from "./repo";
+import {
+  createGeocodeRepo,
+  createRepo,
+  pgRpc,
+  toRpcError,
+  type GeocodeRepo,
+  type Repo,
+  type Rpc,
+} from "./repo";
 
 const g = globalThis as unknown as {
-  __stemcycleRepo?: Promise<Repo>;
+  __stemcycleRpc?: Promise<Rpc>;
   __stemcycleLocalDb?: Promise<PGlite>;
 };
 
-/** Service-level repository (Supabase service role in production, PGlite locally). */
-export function getRepo(): Promise<Repo> {
-  g.__stemcycleRepo ??= (async () => {
-    if (env.dataBackend === "supabase") return createRepo(supabaseRpc(serviceClient()));
-    return createRepo(pgRpc(await getLocalDb()));
+/** Service-level RPC (Supabase service role in production, PGlite locally). */
+export function getServiceRpc(): Promise<Rpc> {
+  g.__stemcycleRpc ??= (async () => {
+    if (env.dataBackend === "supabase") return supabaseRpc(serviceClient());
+    return pgRpc(await getLocalDb());
   })().catch((err) => {
-    g.__stemcycleRepo = undefined; // allow a retry on the next request
+    g.__stemcycleRpc = undefined; // allow a retry on the next request
     throw err;
   });
-  return g.__stemcycleRepo;
+  return g.__stemcycleRpc;
+}
+
+export async function getRepo(): Promise<Repo> {
+  return createRepo(await getServiceRpc());
+}
+
+export async function getGeocodeRepo(): Promise<GeocodeRepo> {
+  return createGeocodeRepo(await getServiceRpc());
 }
 
 /** The embedded local database (local backend only). */

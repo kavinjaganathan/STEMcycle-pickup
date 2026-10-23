@@ -26,7 +26,7 @@ export type Deps = {
   now: () => Date;
 };
 
-type Outcome<T> = { status: number; body: T };
+type Outcome<T> = { status: number; body: T; pickupId?: string };
 
 export type SubmitBody =
   | { ok: true; slot: SlotWindow | null; emailSent: boolean; cancelUrl?: string }
@@ -141,6 +141,7 @@ export async function submitPickup(
 
   return {
     status: 201,
+    pickupId: result.pickup_id,
     // Only fall back to showing the cancel link on screen if the email failed.
     body: { ok: true, slot: result.slot, emailSent, ...(emailSent ? {} : { cancelUrl }) },
   };

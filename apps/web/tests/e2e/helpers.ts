@@ -11,6 +11,11 @@ export async function expectNoAxeViolations(page: Page) {
   ).toEqual([]);
 }
 
+/** Don't load OpenStreetMap's volunteer-run tile servers from automated tests. */
+export async function blockMapTiles(page: Page) {
+  await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
+}
+
 /** Local dev login (only available with the local database backend). */
 export async function signInAs(page: Page, name: "Alex Admin" | "Dana Driver" | "Sam Driver") {
   await page.goto("/login");

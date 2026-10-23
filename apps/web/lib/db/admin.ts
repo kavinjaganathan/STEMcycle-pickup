@@ -84,6 +84,16 @@ export function createAdminApi(rpc: Rpc) {
     setPickupStatus: (id: string, status: PickupStatus) =>
       rpc("admin_set_pickup_status", { p_id: id, p_status: status }),
 
+    setPickupLocation: (id: string, lat: number, lng: number) =>
+      rpc("admin_set_pickup_location", { p_id: id, p_lat: lat, p_lng: lng }),
+    updatePickupAddress: (id: string, a: { address_line: string; city: string; zip: string }) =>
+      rpc("admin_update_pickup_address", {
+        p_id: id,
+        p_address_line: a.address_line,
+        p_city: a.city,
+        p_zip: a.zip,
+      }),
+
     listSlots: async (from: string) =>
       (await rpc("admin_list_slots", { p_from: from })) as AdminSlot[],
     createSlots: async (dates: string[], start: string, end: string, capacity: number | null) =>

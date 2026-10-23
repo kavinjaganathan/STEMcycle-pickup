@@ -42,6 +42,8 @@ test("resident books a pickup, gets an email, and cancels it", async ({ page }, 
   const cancelUrl = latestEmailTo(email)!.text.match(/http\S+\/cancel\/\S+/)![0];
 
   await page.goto(cancelUrl);
+  // The token is in the path: this page must never send a Referer.
+  await expect(page.locator('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
   await expect(page.getByText(/Your pickup is scheduled for/)).toBeVisible();
   expect((await axe(page).analyze()).violations).toEqual([]);
   await page.getByRole("button", { name: "Yes, cancel my pickup" }).click();

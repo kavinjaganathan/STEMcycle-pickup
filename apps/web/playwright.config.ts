@@ -28,6 +28,7 @@ export default defineConfig({
       APP_URL: `http://localhost:${PORT}`,
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: "",
       TURNSTILE_SECRET_KEY: "",
+      GEOCODER: "fake",
     },
   },
 });

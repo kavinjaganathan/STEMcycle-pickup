@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { z } from "zod";
 import { getAuth, type AuthContext, type Role } from "@/lib/auth";
 import { RpcError } from "@/lib/db/repo";
+import { TemporaryGeocodeError } from "@/lib/geocode";
 import { log } from "@/lib/logger";
 
 const NO_STORE = { "Cache-Control": "no-store" };
@@ -19,6 +20,7 @@ const APP_ERRORS: Record<string, string> = {
   cannot_demote_self: "You can't remove your own admin access.",
   email_exists: "Someone with that email already has an account.",
   plan_not_draft: "Only draft plans can be published.",
+  invalid_location: "That location isn't valid.",
   stop_not_yours: "That stop isn't on your route.",
 };
 
@@ -54,6 +56,12 @@ export function errorResponse(err: unknown) {
   if (err instanceof RpcError) {
     if (err.forbidden) return json({ error: "Not allowed." }, 403);
     if (err.code === "P0001") return json({ error: APP_ERRORS[err.message] ?? err.message }, 400);
+  }
+  if (err instanceof TemporaryGeocodeError) {
+    return json(
+      { error: "The address lookup service is busy. Please try again in a minute." },
+      503,
+    );
   }
   if (err instanceof Error && APP_ERRORS[err.message]) {
     return json({ error: APP_ERRORS[err.message] }, 400);

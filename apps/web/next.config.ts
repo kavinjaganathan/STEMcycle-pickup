@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
 const securityHeaders = [
-  // Cancel links carry a token in the path; never leak it via Referer.
-  { key: "Referrer-Policy", value: "no-referrer" },
+  // Cross-origin requests get only the origin (never a path, so cancel tokens
+  // can't leak); OSM's tile servers require at least that. The cancel page
+  // itself sets no-referrer.
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },

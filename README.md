@@ -3,8 +3,8 @@
 Web app for scheduling doorstep pickups of used textbooks in Frisco, Plano, McKinney
 and nearby cities. The books are donated to rural communities.
 
-**Status:** Phases 1–2 of 6 are done: the resident request form, emails and cancel
-links, plus the admin dashboard.
+**Status:** Phases 1–3 of 6 are done: the resident request form, emails and cancel
+links, the admin dashboard, and geocoding.
 
 ## Repo layout
 
@@ -97,8 +97,32 @@ a one-time temporary password for the admin to share privately.
 3. The database itself. Admin SQL functions run as the signed-in user, check the
    admin role, and are covered by row-level security.
 
+## Geocoding
+
+Addresses are turned into map coordinates with the free
+[Nominatim](https://nominatim.org) service from OpenStreetMap.
+
+- **When it runs:** right after a request is submitted, in the background so the
+  resident isn't kept waiting. Pickups that are still waiting are retried by the
+  daily job and before route planning.
+- **Rate limit:** at most 1 request per second, shared across all server instances
+  through the `geocode_throttle` table. Results are cached in `geocode_cache`,
+  keyed by a hash of the normalized address (the address text is not stored there).
+- **Results:**
+  - A house-number match inside the service area is `ok`.
+  - A street-level or out-of-area match is flagged **Check location**.
+  - No match is flagged **Location not found**.
+  - For both flags, an admin clicks **Fix location** to correct the address or
+    drop the pin on a map.
+- **Testing and offline work:** set `GEOCODER=fake` (local only) for deterministic
+  coordinates without network calls.
+- **Contact address:** Nominatim's usage policy asks for a contact address in the
+  User-Agent. Set `NOMINATIM_CONTACT_EMAIL`; it defaults to `EMAIL_FROM`.
+
 ## Privacy and security notes
 
+- Addresses go to Nominatim (over HTTPS) only to look up coordinates; they never
+  appear in this app's own URLs.
 - Addresses, emails and phone numbers are never logged. `lib/logger.ts` redacts
   PII as a backstop.
 - Cancel links use a 256-bit random token. Only its SHA-256 hash is stored. The
