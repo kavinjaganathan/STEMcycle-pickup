@@ -18,8 +18,11 @@ export function migrationSql(): string[] {
   ];
 }
 
-export function seedSql(): string {
-  return fs.readFileSync(path.join(ROOT, "supabase/seed.sql"), "utf8");
+export function seedSql(): string[] {
+  return [
+    fs.readFileSync(path.join(ROOT, "supabase/local/dev-users.sql"), "utf8"),
+    fs.readFileSync(path.join(ROOT, "supabase/seed.sql"), "utf8"),
+  ];
 }
 
 /** Fresh database with all migrations applied (and optionally the dev seed). */
@@ -29,7 +32,7 @@ export async function createLocalDb(opts: { dataDir?: string; seed?: boolean } =
   const db = new PGlite(opts.dataDir);
   if (fresh) {
     for (const sql of migrationSql()) await db.exec(sql);
-    if (opts.seed) await db.exec(seedSql());
+    if (opts.seed) for (const sql of seedSql()) await db.exec(sql);
   }
   return db;
 }

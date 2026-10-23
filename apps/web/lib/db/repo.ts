@@ -87,19 +87,65 @@ export function createRepo(rpc: Rpc) {
 
 export type Repo = ReturnType<typeof createRepo>;
 
-/** Calls `select fn(arg => $1, ...)` on a PGlite (or any pg-compatible) client. */
-export function pgRpc(db: {
+/**
+ * Error from a database function. `code` is the SQLSTATE; for business-rule
+ * errors (P0001) `message` is a short code such as "slot_has_pickups". Other
+ * Postgres messages are dropped because they can echo row values (PII).
+ */
+export class RpcError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "RpcError";
+  }
+  get forbidden() {
+    return this.code === "42501";
+  }
+}
+
+export function toRpcError(fn: string, code: string | undefined, message: string | undefined) {
+  const c = code ?? "unknown";
+  return new RpcError(c, c === "P0001" && message ? message : `rpc ${fn} failed (${c})`);
+}
+
+/** Arrays become Postgres array literals so enum[]/date[] params work in PGlite. */
+function toPgParam(v: unknown): unknown {
+  if (!Array.isArray(v)) return v;
+  return `{${v.map((x) => `"${String(x).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",")}}`;
+}
+
+type PgClient = {
   query: <T>(sql: string, params?: unknown[]) => Promise<{ rows: T[] }>;
-}): Rpc {
+  exec: (sql: string) => Promise<unknown>;
+};
+type PgDb = PgClient & { transaction: <T>(fn: (tx: PgClient) => Promise<T>) => Promise<T> };
+
+/**
+ * Calls `select fn(arg => $1, ...)` on PGlite. With `asUser`, runs as the
+ * `authenticated` role with that user id, mirroring a Supabase user JWT.
+ */
+export function pgRpc(db: PgDb, opts: { asUser?: string } = {}): Rpc {
   return async (fn, args = {}) => {
     if (!/^[a-z_]+$/.test(fn)) throw new Error("invalid function name");
     const keys = Object.keys(args);
-    for (const k of keys) if (!/^p_[a-z_]+$/.test(k)) throw new Error("invalid argument name");
+    for (const k of keys) if (!/^p_?[a-z_]*$/.test(k)) throw new Error("invalid argument name");
     const sql = `select ${fn}(${keys.map((k, i) => `${k} => $${i + 1}`).join(", ")}) as r`;
-    const res = await db.query<{ r: unknown }>(
-      sql,
-      keys.map((k) => args[k]),
-    );
-    return res.rows[0]?.r ?? null;
+    const params = keys.map((k) => toPgParam(args[k]));
+    const run = async (c: PgClient) =>
+      (await c.query<{ r: unknown }>(sql, params)).rows[0]?.r ?? null;
+    try {
+      if (!opts.asUser) return await run(db);
+      const uid = opts.asUser;
+      return await db.transaction(async (tx) => {
+        await tx.query("select set_config('request.jwt.claim.sub', $1, true)", [uid]);
+        await tx.exec("set local role authenticated");
+        return run(tx);
+      });
+    } catch (err) {
+      const e = err as { code?: string; message?: string };
+      throw toRpcError(fn, e.code, e.message);
+    }
   };
 }

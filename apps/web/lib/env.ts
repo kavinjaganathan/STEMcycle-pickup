@@ -22,6 +22,7 @@ export const env = {
   },
   supabaseUrl: () => required("SUPABASE_URL"),
   supabaseServiceKey: () => required("SUPABASE_SERVICE_ROLE_KEY"),
+  supabaseAnonKey: () => required("SUPABASE_ANON_KEY"),
 
   get emailProvider(): "smtp" | "resend" | "file" {
     const p = process.env.EMAIL_PROVIDER;

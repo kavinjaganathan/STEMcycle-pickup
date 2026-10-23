@@ -32,20 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
-        <header className="border-b border-border bg-surface">
-          <div className="mx-auto flex max-w-2xl items-center gap-2 px-4 py-3">
-            <span aria-hidden="true" className="text-xl">
-              📚
-            </span>
-            <span className="font-semibold tracking-tight">StemCycle Pickup</span>
-          </div>
-        </header>
-        <main id="main" className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:py-10">
-          {children}
-        </main>
-        <footer className="border-t border-border px-4 py-6 text-center text-sm text-muted">
-          We use your details only to schedule your pickup and never share them.
-        </footer>
+        {children}
       </body>
     </html>
   );

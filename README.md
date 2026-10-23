@@ -3,8 +3,8 @@
 Web app for scheduling doorstep pickups of used textbooks in Frisco, Plano, McKinney
 and nearby cities. The books are donated to rural communities.
 
-**Status:** Phase 1 of 6 is done: the resident request form, database, confirmation
-emails and cancel links.
+**Status:** Phases 1–2 of 6 are done: the resident request form, emails and cancel
+links, plus the admin dashboard.
 
 ## Repo layout
 
@@ -36,6 +36,9 @@ npm run dev                  # http://localhost:3000
 - Emails are written to `apps/web/.data/outbox/*.json` while `EMAIL_PROVIDER=file`.
   Open the newest file to find the cancel link.
 - To reset the local database, delete `apps/web/.data/pglite`.
+- **Signing in locally:** go to http://localhost:3000/login and pick a seeded user
+  (Alex Admin, Dana Driver, Sam Driver). No passwords are needed locally. This
+  shortcut is disabled whenever the app runs against Supabase or on Vercel.
 - The Turnstile keys in `.env.example` are Cloudflare's always-pass test keys.
 
 ## Checks
@@ -72,6 +75,27 @@ at https://myaccount.google.com/apppasswords and use it as `SMTP_PASS`, with
 The ZIP allowlist is stored in the `settings` table, seeded with Frisco, Plano,
 McKinney, Allen, Prosper, Little Elm, The Colony, Richardson and Carrollton ZIPs.
 It will be editable from the admin dashboard in Phase 2.
+
+## Admin dashboard (`/admin`)
+
+| Page | What it does |
+|---|---|
+| Pickups | Filter by date range and status; mark pickups picked up, cancel or reopen them; export CSV (with spreadsheet formula-injection protection) |
+| Windows | Add pickup windows in bulk (date range × weekdays × time), set capacity, close or delete windows |
+| Vehicles | Add or edit vehicles: type (SUV by default), capacity in books, max route minutes, usual driver |
+| Depots | Start and end locations for routes |
+| Team | Add admins and drivers; change roles; deactivate people |
+| Settings | Org name, timezone, service ZIPs, booking cutoff, email sender name and reply-to, data retention, route-planning timings |
+
+**Sign-in in production** uses Supabase Auth: email and password, or an emailed
+sign-in link. When an admin adds a person, the app creates their account and shows
+a one-time temporary password for the admin to share privately.
+
+**Access control** is enforced in three places:
+1. Page guards.
+2. API role checks.
+3. The database itself. Admin SQL functions run as the signed-in user, check the
+   admin role, and are covered by row-level security.
 
 ## Privacy and security notes
 

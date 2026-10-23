@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { E2E_DATA } from "../../playwright.config";
+import { axe } from "./helpers";
 
 const OUTBOX = path.join(E2E_DATA, "outbox");
 
@@ -26,8 +26,6 @@ async function fillForm(page: Page, email: string) {
   await page.getByLabel("Approximate number of books").fill("25");
   await page.getByLabel("Pickup window").selectOption({ index: 1 });
 }
-
-const axe = (page: Page) => new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]);
 
 test("resident books a pickup, gets an email, and cancels it", async ({ page }, info) => {
   const email = `ada+${info.project.name}-${Date.now()}@example.com`;
