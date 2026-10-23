@@ -126,6 +126,9 @@ describe("row level security", () => {
     const { rows: users } = await db.query<{ id: string }>(
       "insert into auth.users (email) values ('d@x.org'), ('a@x.org') returning id",
     );
+    await db.query("update profiles set active = true where id = any($1::uuid[])", [
+      `{${users[0].id},${users[1].id}}`,
+    ]);
     await db.query("update profiles set role = 'admin' where id = $1", [users[1].id]);
 
     const countAs = async (role: string, sub: string | null) => {

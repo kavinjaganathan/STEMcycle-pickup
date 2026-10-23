@@ -6,6 +6,7 @@ export const E2E_DATA = path.resolve(__dirname, ".data/e2e");
 
 export default defineConfig({
   testDir: "tests/e2e",
+  globalTeardown: "./tests/e2e/teardown.ts",
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
@@ -16,7 +17,8 @@ export default defineConfig({
   ],
   webServer: {
     // Fresh local database + file outbox for every run.
-    command: `rm -rf "${E2E_DATA}" && npx next build && npx next start -p ${PORT}`,
+    // Server output goes to a file so teardown can check it for PII.
+    command: `rm -rf "${E2E_DATA}" && mkdir -p "${E2E_DATA}" && npx next build && npx next start -p ${PORT} > "${E2E_DATA}/server.log" 2>&1`,
     url: `http://localhost:${PORT}`,
     timeout: 240_000,
     reuseExistingServer: false,
@@ -31,6 +33,7 @@ export default defineConfig({
       GEOCODER: "fake",
       ROUTING_PROVIDER: "fake",
       SOLVER_URL: "",
+      CRON_SECRET: "e2e-cron-secret-0123456789",
     },
   },
 });

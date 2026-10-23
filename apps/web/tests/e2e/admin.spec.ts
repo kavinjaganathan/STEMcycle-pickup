@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { bookPickup, expectNoAxeViolations, signInAs } from "./helpers";
 
 test.describe("access control", () => {

@@ -1,4 +1,4 @@
-import { expect, test, type Browser } from "@playwright/test";
+import { expect, recordContext, test, type Browser } from "./fixtures";
 import { blockMapTiles, bookPickup, expectNoAxeViolations, signInAs } from "./helpers";
 
 test.beforeEach(({ page }) => blockMapTiles(page));
@@ -10,6 +10,7 @@ async function newDriverPage(
   use: object,
 ) {
   const ctx = await browser.newContext(use);
+  recordContext(ctx);
   const page = await ctx.newPage();
   await blockMapTiles(page);
   await signInAs(page, name);

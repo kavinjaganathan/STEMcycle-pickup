@@ -79,6 +79,10 @@ export function createRepo(rpc: Rpc) {
     cancelPickup: async (tokenHash: string) =>
       (await rpc("cancel_pickup", { p_token_hash: tokenHash })) as CancelResult,
 
+    runMaintenance: async () =>
+      (await rpc("run_maintenance")) as { anonymized: number; plans_removed: number },
+    healthCheck: async () => (await rpc("health_check")) === true,
+
     rateLimitHit: async (key: string, windowSeconds: number, max: number) =>
       (await rpc("rate_limit_hit", {
         p_key: key,

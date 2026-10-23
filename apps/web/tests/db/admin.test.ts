@@ -115,7 +115,7 @@ describe("admin functions", () => {
     expect((await api.getSettings()).zip_allowlist).toEqual(["75033"]);
   });
 
-  it("creates a driver profile when an auth user is added", async () => {
+  it("creates an inactive driver profile when an auth user is added", async () => {
     const { rows } = await db.query<{ id: string }>(
       "insert into auth.users (email) values ('new@x.org') returning id",
     );
@@ -123,6 +123,7 @@ describe("admin functions", () => {
     expect(users.find((u) => u.id === rows[0].id)).toMatchObject({
       role: "driver",
       email: "new@x.org",
+      active: false, // no access until an admin activates them
     });
   });
 });

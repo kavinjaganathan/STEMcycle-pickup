@@ -141,9 +141,8 @@ export function DriverRoutes({ today }: { today: string }) {
             setRoutes(null);
             setDate(addDays(date, -1));
           }}
-          aria-label="Previous day"
         >
-          ‹ Prev
+          <span aria-hidden="true">‹</span> Prev<span className="sr-only">ious day</span>
         </Button>
         <h1 className="text-center text-xl font-bold tracking-tight">
           {isToday ? "Today" : formatSlotDate(date)}
@@ -157,9 +156,8 @@ export function DriverRoutes({ today }: { today: string }) {
             setRoutes(null);
             setDate(addDays(date, 1));
           }}
-          aria-label="Next day"
         >
-          Next ›
+          Next<span className="sr-only"> day</span> <span aria-hidden="true">›</span>
         </Button>
       </div>
 

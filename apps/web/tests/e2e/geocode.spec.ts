@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { blockMapTiles, bookPickup, expectNoAxeViolations, signInAs } from "./helpers";
 
 test.beforeEach(({ page }) => blockMapTiles(page));
