@@ -34,6 +34,26 @@ export const env = {
   get turnstileSecret() {
     return process.env.TURNSTILE_SECRET_KEY ?? "";
   },
+  /** The single shared admin login. Locally it defaults to a dev account. */
+  get adminEmail(): string {
+    const v = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    if (v) return v;
+    if (this.isHosted) throw new Error("ADMIN_EMAIL is not set");
+    return "admin@stemcycle.local";
+  },
+  /** scrypt hash from scripts/hash-admin-password.mjs; null = use the local dev password. */
+  get adminPasswordHash(): string | null {
+    const v = process.env.ADMIN_PASSWORD_HASH?.trim();
+    if (v) return v;
+    if (this.isHosted) throw new Error("ADMIN_PASSWORD_HASH is not set");
+    return null;
+  },
+  get adminSessionSecret(): string {
+    const v = process.env.ADMIN_SESSION_SECRET;
+    if (v && v.length >= 32) return v;
+    if (this.isHosted) throw new Error("ADMIN_SESSION_SECRET must be at least 32 characters");
+    return "local-dev-admin-session-secret-not-for-production";
+  },
   get rateLimitSalt() {
     const salt = process.env.RATE_LIMIT_SALT;
     if (salt) return salt;

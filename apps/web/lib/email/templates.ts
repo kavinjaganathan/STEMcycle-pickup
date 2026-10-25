@@ -162,3 +162,18 @@ export function routeEmail(p: {
   });
   return { subject, text, html };
 }
+
+export function passwordResetEmail(p: { orgName: string; resetUrl: string }) {
+  const subject = `Reset your ${p.orgName} password`;
+  const line =
+    "Someone asked to reset the password for your driver account. If it was you, open this link within an hour and choose a new password. If not, you can ignore this email.";
+  const text = [line, "", p.resetUrl, "", `— ${p.orgName}`].join("\n");
+  const html = layout({
+    orgName: p.orgName,
+    eyebrow: "Password reset",
+    title: "Choose a new password",
+    body: para(line),
+    button: { href: p.resetUrl, label: "Reset password" },
+  });
+  return { subject, text, html };
+}

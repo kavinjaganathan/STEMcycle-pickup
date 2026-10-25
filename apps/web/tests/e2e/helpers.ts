@@ -16,6 +16,13 @@ export async function blockMapTiles(page: Page) {
   await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
 }
 
+/** Local dev login (only available with the local database backend). */
+export async function signInAs(page: Page, name: "Admin" | "Dana Driver" | "Sam Driver") {
+  await page.goto("/login");
+  await page.getByRole("button", { name: new RegExp(`Sign in as ${name}`) }).click();
+  await page.waitForURL(name === "Admin" ? "**/admin" : "**/driver");
+}
+
 /** Books a pickup through the public API and returns the slot it landed in. */
 export async function bookPickup(
   request: APIRequestContext,

@@ -22,9 +22,8 @@ export async function proxy(request: NextRequest) {
 
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
-  const needsSession = /^\/(admin|driver|account|login|api\/(admin|driver|auth))(\/|$)/.test(
-    pathname,
-  );
+  // Driver sessions (Supabase Auth). The admin uses its own signed cookie.
+  const needsSession = /^\/(driver|login|auth|api\/(driver|auth))(\/|$)/.test(pathname);
   if (!needsSession || process.env.DATA_BACKEND === "local" || !url || !key)
     return NextResponse.next();
 
@@ -44,5 +43,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/driver/:path*", "/account", "/login", "/api/:path*"],
+  matcher: ["/driver/:path*", "/login", "/auth/:path*", "/api/:path*"],
 };

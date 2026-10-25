@@ -1,5 +1,9 @@
 import "server-only";
+import { connection } from "next/server";
 import { z } from "zod";
+import { getDriver, type DriverContext } from "@/lib/auth";
+import { getAdmin } from "@/lib/auth/admin";
+import type { Rpc } from "@/lib/db/repo";
 import { RpcError } from "@/lib/db/repo";
 import { TemporaryGeocodeError } from "@/lib/geocode";
 import { log } from "@/lib/logger";
@@ -13,15 +17,53 @@ export function json(body: unknown, status = 200) {
 /** Friendly text for business-rule error codes raised by the SQL functions. */
 const APP_ERRORS: Record<string, string> = {
   not_found: "That item no longer exists.",
-  slot_has_pickups: "This window has pickups booked. Deactivate it instead of deleting.",
-  invalid_window: "The end time must be after the start time.",
-  cannot_demote_self: "You can't remove your own admin access.",
-  email_exists: "Someone with that email already has an account.",
-  plan_not_draft: "Only draft plans can be published.",
   invalid_location: "That location isn't valid.",
+  availability_locked: "That weekend is locked: routes are final. Ask the admin to make changes.",
+  hours_out_of_range: "Those hours are outside the pickup day.",
+  driver_not_active: "That driver isn't active.",
   pickup_cancelled: "The resident cancelled this pickup.",
   stop_not_yours: "That stop isn't on your route.",
 };
+
+type Handler<C, P> = (ctx: C, request: Request, params: P) => Promise<Response>;
+type RouteContext<P> = { params: Promise<P> };
+
+/**
+ * Wraps a driver route handler: requires a signed-in driver (active unless
+ * `allowInactive`), then maps thrown errors to JSON without leaking details.
+ */
+export function withDriver<P = unknown>(
+  handler: Handler<DriverContext, P>,
+  opts: { allowInactive?: boolean } = {},
+) {
+  return async (request: Request, context: RouteContext<P>) => {
+    // Outside the try: lets Next's prerender bail-out propagate instead of being logged.
+    await connection();
+    try {
+      const ctx = await getDriver();
+      if (!ctx) return json({ error: "Please sign in." }, 401);
+      if (!opts.allowInactive && ctx.driver.status !== "active")
+        return json({ error: "Your account isn't active yet." }, 403);
+      return await handler(ctx, request, await context.params);
+    } catch (err) {
+      return errorResponse(err);
+    }
+  };
+}
+
+/** Wraps an admin route handler: requires the admin session cookie. */
+export function withAdmin<P = unknown>(handler: Handler<{ rpc: Rpc }, P>) {
+  return async (request: Request, context: RouteContext<P>) => {
+    await connection();
+    try {
+      const ctx = await getAdmin();
+      if (!ctx) return json({ error: "Please sign in." }, 401);
+      return await handler(ctx, request, await context.params);
+    } catch (err) {
+      return errorResponse(err);
+    }
+  };
+}
 
 export function errorResponse(err: unknown) {
   if (err instanceof z.ZodError) {

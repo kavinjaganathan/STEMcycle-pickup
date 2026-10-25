@@ -31,8 +31,10 @@ export async function api<T = unknown>(
     issues?: Record<string, string[]>;
   };
   // Session expired: a full navigation clears any personal data held in memory.
-  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-  if (res.status === 401 && typeof window !== "undefined") window.location.assign("/login");
+  if (res.status === 401 && typeof window !== "undefined")
+    window.location.assign(
+      window.location.pathname.startsWith("/admin") ? "/admin/login" : "/login",
+    );
   if (!res.ok) throw new ApiError(data.error ?? "Something went wrong.", res.status, data.issues);
   return data as T;
 }
