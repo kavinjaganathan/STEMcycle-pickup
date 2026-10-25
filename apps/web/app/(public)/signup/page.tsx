@@ -10,8 +10,8 @@ export default function SignupPage() {
       <p className="eyebrow">Volunteer drivers</p>
       <h1 className="display mt-1 text-4xl">Sign up to drive</h1>
       <p className="mt-4 leading-relaxed text-muted">
-        After you confirm your email, an admin approves your account. Then you can add the
-        weekend hours you&apos;re free.
+        After you confirm your email, an admin approves your account. Then you can add the weekend
+        hours you&apos;re free.
       </p>
       <div className="panel mt-8 p-5 sm:p-8">
         <SignupForm turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ""} />

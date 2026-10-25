@@ -46,7 +46,10 @@ test("a new driver signs up, signs in and waits for approval", async ({ page }, 
   const res = await page.request.get("/api/driver/routes?weekend=2026-10-31");
   expect([403, 404]).toContain(res.status());
 
-  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Account" }).click();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Account" })
+    .click();
   await expect(page.getByText("Waiting for admin approval")).toBeVisible();
   await page.getByLabel("Vehicle capacity (boxes)").fill("18");
   await page.getByRole("button", { name: "Save details" }).click();

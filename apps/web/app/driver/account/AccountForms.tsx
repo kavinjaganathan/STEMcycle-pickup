@@ -76,7 +76,10 @@ export function AccountForms({
               />
             )}
           </Field>
-          <Field label="Vehicle capacity (boxes)" hint="Changing this re-plans your upcoming routes.">
+          <Field
+            label="Vehicle capacity (boxes)"
+            hint="Changing this re-plans your upcoming routes."
+          >
             {(id, d) => (
               <input
                 id={id}

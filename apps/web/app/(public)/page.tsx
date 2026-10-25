@@ -12,8 +12,8 @@ export default function Home() {
           Donate your used textbooks.
         </h1>
         <p className="mt-5 max-w-[50ch] text-lg leading-relaxed text-muted">
-          A StemCycle volunteer picks them up from your doorstep on a weekend, and we donate them
-          to students in rural communities. Booking takes about two minutes.
+          A StemCycle volunteer picks them up from your doorstep on a weekend, and we donate them to
+          students in rural communities. Booking takes about two minutes.
         </p>
         <dl className="mt-8 grid grid-cols-3 border-t border-ink pt-4">
           <Fact term="When" value="Weekends" />

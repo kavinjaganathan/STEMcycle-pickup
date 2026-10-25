@@ -4,7 +4,13 @@ import { useMemo, useState } from "react";
 import { Button, Notice } from "@/components/ui";
 import { api, errorText } from "@/lib/client/api";
 import type { Availability } from "@/lib/db/driver";
-import { formatBlocks, formatHour, formatHourRange, formatInstant, formatSlotDate } from "@/lib/format";
+import {
+  formatBlocks,
+  formatHour,
+  formatHourRange,
+  formatInstant,
+  formatSlotDate,
+} from "@/lib/format";
 
 type Hours = Record<string, number[]>; // date -> sorted hours
 
@@ -20,13 +26,18 @@ export function AvailabilityEditor({ initial }: { initial: Availability }) {
   const [saved, setSaved] = useState<Hours>(() => toHours(initial));
   const [hours, setHours] = useState<Hours>(() => toHours(initial));
   const [busy, setBusy] = useState<string | null>(null);
-  const [msg, setMsg] = useState<{ weekend: string; kind: "success" | "error"; text: string } | null>(
-    null,
-  );
+  const [msg, setMsg] = useState<{
+    weekend: string;
+    kind: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const hourList = useMemo(
     () =>
-      Array.from({ length: initial.last_hour - initial.first_hour }, (_, i) => initial.first_hour + i),
+      Array.from(
+        { length: initial.last_hour - initial.first_hour },
+        (_, i) => initial.first_hour + i,
+      ),
     [initial.first_hour, initial.last_hour],
   );
 
@@ -163,7 +174,9 @@ export function AvailabilityEditor({ initial }: { initial: Availability }) {
                   Use these hours every weekend
                 </Button>
               )}
-              {dirty && <span className="text-sm font-bold text-brand-strong">Unsaved changes</span>}
+              {dirty && (
+                <span className="text-sm font-bold text-brand-strong">Unsaved changes</span>
+              )}
               {msg?.weekend === weekend && (
                 <div className="w-full">
                   <Notice kind={msg.kind}>{msg.text}</Notice>

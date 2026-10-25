@@ -133,17 +133,16 @@ describe("access control", () => {
     const me = await addDriver(db, { hours: { [sat]: [10] } });
     const other = await addDriver(db, { hours: { [sat]: [10] } });
     await book(10, "tok");
-    const count = (sql: string) =>
-      db.query<{ n: number }>(sql).then((r) => r.rows[0].n);
+    const count = (sql: string) => db.query<{ n: number }>(sql).then((r) => r.rows[0].n);
 
-    expect(await asRole(db, "anon", null, () => count("select count(*)::int n from pickups"))).toBe(0);
+    expect(await asRole(db, "anon", null, () => count("select count(*)::int n from pickups"))).toBe(
+      0,
+    );
     await asRole(db, "authenticated", me, async () => {
       expect(await count("select count(*)::int n from pickups")).toBe(0);
       expect(await count("select count(*)::int n from profiles")).toBe(1);
       expect(await count("select count(*)::int n from driver_hours")).toBe(1);
-      expect(
-        await count(`select count(*)::int n from profiles where id = '${other}'`),
-      ).toBe(0);
+      expect(await count(`select count(*)::int n from profiles where id = '${other}'`)).toBe(0);
     });
   });
 
@@ -155,9 +154,9 @@ describe("access control", () => {
     });
     await asRole(db, "authenticated", me, async () => {
       await expect(db.query("select admin_get_settings()")).rejects.toThrow(/permission denied/);
-      await expect(
-        db.query("select admin_update_driver($1, 'active', 5)", [me]),
-      ).rejects.toThrow(/permission denied/);
+      await expect(db.query("select admin_update_driver($1, 'active', 5)", [me])).rejects.toThrow(
+        /permission denied/,
+      );
       const { rows } = await db.query<{ p: { status: string } }>("select my_profile() as p");
       expect(rows[0].p.status).toBe("active");
     });

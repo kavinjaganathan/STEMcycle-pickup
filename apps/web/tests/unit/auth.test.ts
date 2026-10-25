@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  checkAdminCredentials,
-  isValidAdminCookie,
-  LOCAL_ADMIN_PASSWORD,
-} from "@/lib/auth/admin";
+import { checkAdminCredentials, isValidAdminCookie, LOCAL_ADMIN_PASSWORD } from "@/lib/auth/admin";
 import { hashPassword, verifyPassword } from "@/lib/auth/passwords";
 
 afterEach(() => vi.unstubAllEnvs());

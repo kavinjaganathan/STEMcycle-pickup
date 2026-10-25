@@ -27,7 +27,7 @@ export function formatHour(hour: number): string {
 export function formatHourRange(start: number, end = start + 1): string {
   const a = formatHour(start);
   const b = formatHour(end);
-  const same = (start < 12) === (end < 12 || end === 24) && end !== 12;
+  const same = start < 12 === (end < 12 || end === 24) && end !== 12;
   return same ? `${a.replace(/ (AM|PM)$/, "")} – ${b}` : `${a} – ${b}`;
 }
 

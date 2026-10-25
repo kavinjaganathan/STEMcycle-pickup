@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { PageHeader } from "@/components/ui";
+import { PickupsAdmin } from "@/components/admin/PickupsAdmin";
 import { requireAdmin } from "@/lib/auth/guards";
 
 export const metadata: Metadata = { title: "Pickups", robots: { index: false } };
 
 export default async function AdminHome() {
   await requireAdmin();
-  return <PageHeader eyebrow="Admin" title="Pickups" />;
+  return <PickupsAdmin />;
 }

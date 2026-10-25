@@ -142,7 +142,13 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey: string }) {
       {turnstileSiteKey && (
         <Turnstile siteKey={turnstileSiteKey} onToken={setToken} resetKey={reset} />
       )}
-      <Button type="submit" variant="primary" size="lg" className="w-full sm:w-auto" disabled={busy}>
+      <Button
+        type="submit"
+        variant="primary"
+        size="lg"
+        className="w-full sm:w-auto"
+        disabled={busy}
+      >
         {busy ? "Signing up…" : "Sign up"}
       </Button>
     </form>

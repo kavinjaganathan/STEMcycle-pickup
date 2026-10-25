@@ -48,9 +48,7 @@ describe("driver availability", () => {
       "availability_locked",
     );
     await db.query("insert into weekends (weekend_date, locked_at) values ($1, now())", [sat]);
-    await expect(api.setAvailability(addDays(sat, 1), [10])).rejects.toThrow(
-      "availability_locked",
-    );
+    await expect(api.setAvailability(addDays(sat, 1), [10])).rejects.toThrow("availability_locked");
   });
 
   it("is only for active drivers, and only their own hours", async () => {
@@ -69,7 +67,9 @@ describe("driver availability", () => {
       p_phone: "2145550100",
       p_capacity: 25,
     });
-    const { rows } = await db.query("select count(*)::int n from weekends where dirty_at is not null");
+    const { rows } = await db.query(
+      "select count(*)::int n from weekends where dirty_at is not null",
+    );
     expect(rows).toEqual([{ n: 1 }]);
   });
 });
