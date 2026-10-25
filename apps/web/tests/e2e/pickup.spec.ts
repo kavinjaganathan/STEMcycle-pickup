@@ -23,8 +23,13 @@ async function fillForm(page: Page, email: string) {
   await page.getByLabel("Street address").fill("1 Main St");
   await page.getByLabel("City").fill("Frisco");
   await page.getByLabel("ZIP code").fill("75033");
+  await page.getByLabel("Type of textbooks").selectOption("High School");
   await page.getByLabel("Approximate number of books").fill("25");
-  await page.getByLabel("Pickup window").selectOption({ index: 1 });
+  // Second day, first hour: exercises switching days in the slot picker.
+  // (Radios are visually hidden inside their labels, so click the labels like a person.)
+  await page.getByRole("group", { name: "Day" }).locator("label").nth(1).click();
+  await page.getByRole("radiogroup").locator("label").first().click();
+  await expect(page.getByRole("radiogroup").getByRole("radio").first()).toBeChecked();
 }
 
 test("resident books a pickup, gets an email, and cancels it", async ({ page }, info) => {
@@ -34,6 +39,7 @@ test("resident books a pickup, gets an email, and cancels it", async ({ page }, 
   await page.getByRole("button", { name: "Schedule pickup" }).click();
 
   await expect(page.getByRole("heading", { name: /You're all set/ })).toBeFocused();
+  await expect(page.getByText(/We'll come by on (Saturday|Sunday)/)).toBeVisible();
   await expect(
     page.getByText("A confirmation email with a cancel link is on its way."),
   ).toBeVisible();
@@ -75,12 +81,22 @@ test("rejects addresses outside the service area", async ({ page }) => {
 
 test("home page has no axe violations and no horizontal scroll", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByLabel("Pickup window")).toBeVisible();
+  await expect(page.getByRole("radiogroup")).toBeVisible();
   expect((await axe(page).analyze()).violations).toEqual([]);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
   );
   expect(overflow).toBe(false);
+});
+
+test("only weekend hours with an available driver are offered", async ({ request }) => {
+  const { slots } = await (await request.get("/api/slots/available")).json();
+  expect(slots.length).toBeGreaterThan(0);
+  for (const s of slots as { slot_date: string; hour: number }[]) {
+    expect([0, 6]).toContain(new Date(`${s.slot_date}T12:00:00Z`).getUTCDay());
+    expect(s.hour).toBeGreaterThanOrEqual(8);
+    expect(s.hour).toBeLessThan(18);
+  }
 });
 
 test("an invalid cancel link explains itself", async ({ page }) => {

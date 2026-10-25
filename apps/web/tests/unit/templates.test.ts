@@ -6,14 +6,16 @@ describe("confirmationEmail", () => {
     orgName: "StemCycle",
     name: "<script>alert(1)</script>",
     bookCount: 20,
+    textbookType: "college",
     addressLine: "1 Main St, Frisco 75033",
-    slot: { slot_date: "2026-10-31", start_time: "09:00:00", end_time: "12:00:00" },
+    slot: { slot_date: "2026-10-31", hour: 9 },
     cancelUrl: "https://example.org/cancel/abc",
   });
 
   it("formats the slot in local time", () => {
     expect(msg.subject).toBe("Your StemCycle book pickup: Saturday, October 31");
-    expect(msg.text).toContain("Saturday, October 31, 9 AM – 12 PM");
+    expect(msg.text).toContain("Saturday, October 31, 9 – 10 AM");
+    expect(msg.text).toContain("about 20 (College/University)");
   });
 
   it("escapes user input in HTML and includes the cancel link", () => {

@@ -1,5 +1,5 @@
 import "server-only";
-import type { Repo, SlotWindow } from "@/lib/db/repo";
+import type { Repo, Slot } from "@/lib/db/repo";
 import type { SendEmail } from "@/lib/email";
 import { confirmationEmail } from "@/lib/email/templates";
 import { log } from "@/lib/logger";
@@ -29,7 +29,7 @@ export type Deps = {
 type Outcome<T> = { status: number; body: T; pickupId?: string };
 
 export type SubmitBody =
-  | { ok: true; slot: SlotWindow | null; emailSent: boolean; cancelUrl?: string }
+  | { ok: true; slot: Slot | null; emailSent: boolean; cancelUrl?: string }
   | { ok: false; error: string; fieldErrors?: FieldErrors };
 
 export async function submitPickup(
@@ -88,9 +88,10 @@ export async function submitPickup(
       address_line: data.address_line,
       city: data.city,
       zip: data.zip,
+      textbook_type: data.textbook_type,
       book_count: data.book_count,
       notes: data.notes,
-      slot_id: data.slot_id,
+      ...data.slot,
     },
     hash,
     deps.now(),
@@ -108,8 +109,8 @@ export async function submitPickup(
         status: 409,
         body: {
           ok: false,
-          error: "That pickup window just filled up. Please choose another.",
-          fieldErrors: { slot_id: "That window is no longer available. Please choose another." },
+          error: "That pickup time just filled up. Please choose another.",
+          fieldErrors: { slot: "That time is no longer available. Please choose another." },
         },
       };
   }
@@ -124,6 +125,7 @@ export async function submitPickup(
       orgName: settings.org_name,
       name: data.name,
       bookCount: data.book_count,
+      textbookType: data.textbook_type,
       addressLine: `${data.address_line}, ${data.city} ${data.zip}`,
       slot: result.slot,
       cancelUrl,
@@ -148,7 +150,7 @@ export async function submitPickup(
 }
 
 export type CancelBody =
-  | { ok: true; state: "pending" | "scheduled" | "picked_up" | "cancelled"; slot: SlotWindow }
+  | { ok: true; state: "pending" | "scheduled" | "picked_up" | "cancelled"; slot: Slot }
   | { ok: true; state: "cancelled_now" }
   | { ok: false; error: string };
 

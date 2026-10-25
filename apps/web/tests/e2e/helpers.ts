@@ -16,22 +16,17 @@ export async function blockMapTiles(page: Page) {
   await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
 }
 
-/** Local dev login (only available with the local database backend). */
-export async function signInAs(page: Page, name: "Alex Admin" | "Dana Driver" | "Sam Driver") {
-  await page.goto("/login");
-  await page.getByRole("button", { name: new RegExp(`Sign in as ${name}`) }).click();
-  await page.waitForURL(name === "Alex Admin" ? "**/admin" : "**/driver");
-}
-
 /** Books a pickup through the public API and returns the slot it landed in. */
 export async function bookPickup(
   request: APIRequestContext,
   overrides: Record<string, unknown> = {},
+  pick: (slots: Slot[]) => Slot | undefined = (slots) => slots[0],
 ) {
-  const { slots } = await (await request.get("/api/slots/available")).json();
-  const slot = overrides.slot_id
-    ? slots.find((s: { id: string }) => s.id === overrides.slot_id)
-    : slots[0];
+  const { slots } = (await (await request.get("/api/slots/available")).json()) as {
+    slots: Slot[];
+  };
+  const slot = pick(slots);
+  expect(slot, "a bookable slot").toBeTruthy();
   const res = await request.post("/api/pickups", {
     // Distinct client per booking so tests don't hit the per-IP rate limit.
     headers: {
@@ -44,12 +39,15 @@ export async function bookPickup(
       address_line: "6100 Main St",
       city: "Frisco",
       zip: "75034",
+      textbook_type: "high_school",
       book_count: "30",
-      slot_id: slot.id,
+      slot: `${slot!.slot_date}T${String(slot!.hour).padStart(2, "0")}`,
       notes: "",
       ...overrides,
     },
   });
   expect(res.status()).toBe(201);
-  return slot as { id: string; slot_date: string };
+  return slot!;
 }
+
+export type Slot = { slot_date: string; hour: number; remaining: number };

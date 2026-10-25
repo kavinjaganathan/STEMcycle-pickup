@@ -11,8 +11,9 @@ export const metadata: Metadata = {
 export default function CancelPage() {
   return (
     <>
-      <h1 className="text-2xl font-bold tracking-tight">Cancel your pickup</h1>
-      <div className="mt-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+      <p className="eyebrow">Your pickup</p>
+      <h1 className="display mt-1 text-4xl">Cancel your pickup</h1>
+      <div className="panel mt-8 max-w-xl p-5 sm:p-8">
         <Suspense fallback={<p className="text-muted">Loading…</p>}>
           <CancelPanel />
         </Suspense>

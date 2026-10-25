@@ -1,101 +1,112 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { createLocalDb } from "@/lib/db/pglite";
-import { createRepo, pgRpc, type NewPickup, type Repo } from "@/lib/db/repo";
+import { createRepo, pgRpc, type Repo } from "@/lib/db/repo";
+import { addDays, addDriver, asRole, openSaturday, pickupInput } from "./helpers";
 
 let db: PGlite;
 let repo: Repo;
-
-async function addSlot(
-  opts: { daysAhead?: number; capacity?: number | null; active?: boolean } = {},
-) {
-  const { rows } = await db.query<{ id: string }>(
-    `insert into slots (slot_date, start_time, end_time, capacity, active)
-     values (current_date + $1::int, '09:00', '12:00', $2, $3) returning id`,
-    [opts.daysAhead ?? 3, opts.capacity === undefined ? 10 : opts.capacity, opts.active ?? true],
-  );
-  return rows[0].id;
-}
-
-function pickup(slotId: string, overrides: Partial<NewPickup> = {}): NewPickup {
-  return {
-    name: "Ada Lovelace",
-    email: "ada@example.com",
-    phone: "2145550100",
-    address_line: "1 Main St",
-    city: "Frisco",
-    zip: "75033",
-    book_count: 20,
-    notes: null,
-    slot_id: slotId,
-    ...overrides,
-  };
-}
+let sat: string;
 
 beforeEach(async () => {
   db = await createLocalDb();
   repo = createRepo(pgRpc(db));
+  sat = await openSaturday(db);
 });
 
+const book = (slot_hour: number, token: string, date = sat, overrides = {}) =>
+  repo.createPickup(pickupInput({ slot_date: date, slot_hour }, overrides), token, new Date());
+
 describe("create_pickup", () => {
-  it("creates a pending pickup and returns its slot window", async () => {
-    const slot = await addSlot();
-    const res = await repo.createPickup(pickup(slot), "hash-1", new Date());
-    expect(res.result).toBe("ok");
-    const { rows } = await db.query<{ status: string; geocode_status: string }>(
-      "select status, geocode_status from pickups",
+  it("books an hour a driver is available and estimates boxes", async () => {
+    await addDriver(db, { hours: { [sat]: [10] } });
+    const res = await book(10, "h1", sat, { book_count: 45 });
+    expect(res).toMatchObject({ result: "ok", slot: { slot_date: sat, hour: 10 } });
+    const { rows } = await db.query(
+      "select status, geocode_status, est_boxes, textbook_type from pickups",
     );
-    expect(rows).toEqual([{ status: "pending", geocode_status: "pending" }]);
+    expect(rows).toEqual([
+      { status: "pending", geocode_status: "pending", est_boxes: 3, textbook_type: "high_school" },
+    ]);
+  });
+
+  it("marks the weekend for re-routing", async () => {
+    await addDriver(db, { hours: { [addDays(sat, 1)]: [14] } });
+    await book(14, "h1", addDays(sat, 1));
+    const { rows } = await db.query<{ weekend_date: Date; dirty: boolean }>(
+      "select weekend_date, dirty_at is not null as dirty from weekends",
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].weekend_date.toISOString().slice(0, 10)).toBe(sat);
+    expect(rows[0].dirty).toBe(true);
   });
 
   it("rejects ZIPs outside the service area", async () => {
-    const slot = await addSlot();
-    const res = await repo.createPickup(pickup(slot, { zip: "10001" }), "h", new Date());
-    expect(res.result).toBe("out_of_area");
+    await addDriver(db, { hours: { [sat]: [10] } });
+    expect((await book(10, "h", sat, { zip: "10001" })).result).toBe("out_of_area");
   });
 
-  it("enforces slot capacity, ignoring cancelled pickups", async () => {
-    const slot = await addSlot({ capacity: 1 });
-    expect((await repo.createPickup(pickup(slot), "h1", new Date())).result).toBe("ok");
-    expect((await repo.createPickup(pickup(slot), "h2", new Date())).result).toBe("slot_full");
+  it("caps each hour at drivers x stops per driver-hour, ignoring cancellations", async () => {
+    await db.exec("update settings set stops_per_driver_hour = 1");
+    await addDriver(db, { hours: { [sat]: [10] } });
+    expect((await book(10, "h1")).result).toBe("ok");
+    expect((await book(10, "h2")).result).toBe("slot_full");
+    await addDriver(db, { hours: { [sat]: [10] } });
+    expect((await book(10, "h3")).result).toBe("ok");
+    expect((await book(10, "h4")).result).toBe("slot_full");
     await repo.cancelPickup("h1");
-    expect((await repo.createPickup(pickup(slot), "h3", new Date())).result).toBe("ok");
+    expect((await book(10, "h5")).result).toBe("ok");
   });
 
-  it("rejects inactive slots and slots inside the booking cutoff", async () => {
-    const inactive = await addSlot({ active: false });
-    const today = await addSlot({ daysAhead: 0 });
-    expect((await repo.createPickup(pickup(inactive), "h1", new Date())).result).toBe(
-      "slot_unavailable",
+  it("rejects hours with no active driver, weekdays and locked weekends", async () => {
+    await addDriver(db, { status: "pending", hours: { [sat]: [11] } });
+    await addDriver(db, { hours: { [sat]: [12] } });
+    expect((await book(11, "h1")).result).toBe("slot_unavailable");
+    expect((await book(9, "h2")).result).toBe("slot_unavailable");
+    expect((await book(12, "h3", addDays(sat, -1))).result).toBe("slot_unavailable"); // Friday
+    await db.query("insert into weekends (weekend_date, locked_at) values ($1, now())", [sat]);
+    expect((await book(12, "h4")).result).toBe("slot_unavailable");
+  });
+
+  it("closes a weekend once its Friday lock time has passed", async () => {
+    await addDriver(db, { hours: { [sat]: [12] } });
+    const afterLock = new Date(`${addDays(sat, -1)}T23:30:00Z`); // Fri 6:30 pm Central
+    const res = await repo.createPickup(
+      pickupInput({ slot_date: sat, slot_hour: 12 }),
+      "h",
+      afterLock,
     );
-    expect((await repo.createPickup(pickup(today), "h2", new Date())).result).toBe(
-      "slot_unavailable",
-    );
+    expect(res.result).toBe("slot_unavailable");
   });
 });
 
 describe("available_slots", () => {
-  it("lists only bookable slots with remaining capacity", async () => {
-    const open = await addSlot({ capacity: 2 });
-    const full = await addSlot({ capacity: 1 });
-    const unlimited = await addSlot({ capacity: null });
-    await addSlot({ active: false });
-    await addSlot({ daysAhead: -1 });
-    await repo.createPickup(pickup(full), "h1", new Date());
+  it("lists weekend hours with an active driver and room left", async () => {
+    await db.exec("update settings set stops_per_driver_hour = 2");
+    const sun = addDays(sat, 1);
+    await addDriver(db, { hours: { [sat]: [9, 10], [sun]: [13] } });
+    await addDriver(db, { hours: { [sat]: [10] } });
+    await addDriver(db, { status: "pending", hours: { [sat]: [15] } });
+    await book(9, "a");
+    await book(9, "b"); // 9 AM is now full
 
     const slots = await repo.listAvailableSlots(new Date());
-    const byId = new Map(slots.map((s) => [s.id, s]));
-    expect([...byId.keys()].sort()).toEqual([open, unlimited].sort());
-    expect(byId.get(open)?.remaining).toBe(2);
-    expect(byId.get(unlimited)?.remaining).toBeNull();
+    const mine = slots.filter((s) => s.slot_date === sat || s.slot_date === sun);
+    expect(mine).toEqual([
+      { slot_date: sat, hour: 10, remaining: 4 },
+      { slot_date: sun, hour: 13, remaining: 2 },
+    ]);
   });
 });
 
 describe("cancel_pickup", () => {
+  beforeEach(async () => {
+    await addDriver(db, { hours: { [sat]: [10] } });
+    await book(10, "tok");
+  });
+
   it("cancels once, then reports the existing state", async () => {
-    const slot = await addSlot();
-    await repo.createPickup(pickup(slot), "tok", new Date());
-    expect((await repo.lookupCancel("tok"))?.status).toBe("pending");
+    expect(await repo.lookupCancel("tok")).toEqual({ status: "pending", slot_date: sat, hour: 10 });
     expect((await repo.cancelPickup("tok")).result).toBe("cancelled");
     expect((await repo.cancelPickup("tok")).result).toBe("already_cancelled");
     expect((await repo.cancelPickup("nope")).result).toBe("not_found");
@@ -103,8 +114,6 @@ describe("cancel_pickup", () => {
   });
 
   it("refuses to cancel a pickup that was already collected", async () => {
-    const slot = await addSlot();
-    await repo.createPickup(pickup(slot), "tok", new Date());
     await db.query("update pickups set status = 'picked_up'");
     expect((await repo.cancelPickup("tok")).result).toBe("already_picked_up");
   });
@@ -119,34 +128,38 @@ describe("rate_limit_hit", () => {
   });
 });
 
-describe("row level security", () => {
-  it("hides pickups from anonymous and non-admin users", async () => {
-    const slot = await addSlot();
-    await repo.createPickup(pickup(slot), "tok", new Date());
-    const { rows: users } = await db.query<{ id: string }>(
-      "insert into auth.users (email) values ('d@x.org'), ('a@x.org') returning id",
-    );
-    await db.query("update profiles set active = true where id = any($1::uuid[])", [
-      `{${users[0].id},${users[1].id}}`,
-    ]);
-    await db.query("update profiles set role = 'admin' where id = $1", [users[1].id]);
+describe("access control", () => {
+  it("hides pickups and other drivers from anon and signed-in drivers", async () => {
+    const me = await addDriver(db, { hours: { [sat]: [10] } });
+    const other = await addDriver(db, { hours: { [sat]: [10] } });
+    await book(10, "tok");
+    const count = (sql: string) =>
+      db.query<{ n: number }>(sql).then((r) => r.rows[0].n);
 
-    const countAs = async (role: string, sub: string | null) => {
-      await db.exec(`set role ${role}`);
-      await db.query("select set_config('request.jwt.claim.sub', $1, false)", [sub ?? ""]);
-      const { rows } = await db.query<{ n: number }>("select count(*)::int as n from pickups");
-      await db.exec("reset role");
-      return rows[0].n;
-    };
-
-    expect(await countAs("anon", null)).toBe(0);
-    expect(await countAs("authenticated", users[0].id)).toBe(0);
-    expect(await countAs("authenticated", users[1].id)).toBe(1);
+    expect(await asRole(db, "anon", null, () => count("select count(*)::int n from pickups"))).toBe(0);
+    await asRole(db, "authenticated", me, async () => {
+      expect(await count("select count(*)::int n from pickups")).toBe(0);
+      expect(await count("select count(*)::int n from profiles")).toBe(1);
+      expect(await count("select count(*)::int n from driver_hours")).toBe(1);
+      expect(
+        await count(`select count(*)::int n from profiles where id = '${other}'`),
+      ).toBe(0);
+    });
   });
 
-  it("does not let anon call the service-only functions", async () => {
-    await db.exec("set role anon");
-    await expect(db.query("select get_public_settings()")).rejects.toThrow(/permission denied/);
-    await db.exec("reset role");
+  it("keeps service-only and admin functions away from anon and drivers", async () => {
+    const me = await addDriver(db);
+    await asRole(db, "anon", null, async () => {
+      await expect(db.query("select get_public_settings()")).rejects.toThrow(/permission denied/);
+      await expect(db.query("select my_profile()")).rejects.toThrow(/permission denied/);
+    });
+    await asRole(db, "authenticated", me, async () => {
+      await expect(db.query("select admin_get_settings()")).rejects.toThrow(/permission denied/);
+      await expect(
+        db.query("select admin_update_driver($1, 'active', 5)", [me]),
+      ).rejects.toThrow(/permission denied/);
+      const { rows } = await db.query<{ p: { status: string } }>("select my_profile() as p");
+      expect(rows[0].p.status).toBe("active");
+    });
   });
 });

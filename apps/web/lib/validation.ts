@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TEXTBOOK_TYPES } from "@/lib/shared";
 
 /** Shared by the browser form and the API, so both enforce the same rules. */
 
@@ -48,12 +49,17 @@ export const pickupFormSchema = z.object({
     .trim()
     .regex(/^\d{5}(-\d{4})?$/, "Please enter a 5-digit ZIP code.")
     .transform((s) => s.slice(0, 5)),
+  textbook_type: z.enum(TEXTBOOK_TYPES, { error: "Please choose the type of textbooks." }),
   book_count: z.coerce
     .number({ error: "Please enter the approximate number of books." })
     .int("Please enter a whole number.")
     .min(1, "Please enter at least 1 book.")
     .max(2000, "For more than 2,000 books, please contact us directly."),
-  slot_id: z.uuid("Please choose a pickup window."),
+  // "YYYY-MM-DDTHH": one value per radio button in the slot picker.
+  slot: z
+    .string({ error: "Please choose a pickup time." })
+    .regex(/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3])$/, "Please choose a pickup time.")
+    .transform((s) => ({ slot_date: s.slice(0, 10), slot_hour: Number(s.slice(11)) })),
   notes: z
     .string()
     .max(500, "Notes must be 500 characters or fewer.")
@@ -91,3 +97,42 @@ export const cancelRequestSchema = z.object({
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+export function slotValue(slot: { slot_date: string; hour: number }): string {
+  return `${slot.slot_date}T${String(slot.hour).padStart(2, "0")}`;
+}
+
+const password = z
+  .string()
+  .min(10, "Use at least 10 characters.")
+  .max(200, "Use 200 characters or fewer.");
+
+export const driverProfileSchema = z.object({
+  full_name: singleLine(2, 100, "name"),
+  phone: z.string().transform((s, ctx) => {
+    const p = normalizePhone(s);
+    if (!p) {
+      ctx.addIssue({ code: "custom", message: "Please enter a valid 10-digit US phone number." });
+      return z.NEVER;
+    }
+    return p;
+  }),
+  capacity_boxes: z.coerce
+    .number({ error: "Please enter how many boxes your vehicle holds." })
+    .int("Please enter a whole number.")
+    .min(1, "Please enter at least 1 box.")
+    .max(200, "Please enter 200 boxes or fewer."),
+});
+
+export const driverSignupSchema = driverProfileSchema.extend({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(z.email("Please enter a valid email address.").max(254)),
+  password,
+  website: z.string().max(200).optional(),
+  turnstileToken: z.string().max(4096).optional(),
+});
+
+export const newPasswordSchema = z.object({ password });

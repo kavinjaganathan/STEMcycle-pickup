@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import type { GeocodeStatus, PickupStatus } from "@/lib/db/admin";
+import type { GeocodeStatus, PickupStatus } from "@/lib/shared";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "danger" | "ghost";
@@ -9,12 +9,16 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const VARIANTS = {
-  primary: "bg-brand text-on-brand hover:bg-brand-strong border border-transparent",
-  secondary: "bg-surface text-text border border-border hover:bg-brand-soft",
-  danger: "bg-surface text-danger border border-danger hover:bg-danger-soft",
-  ghost: "text-text hover:bg-brand-soft border border-transparent",
+  primary: "bg-ink text-white border border-ink hover:bg-brand-strong hover:border-brand-strong",
+  secondary: "bg-white text-ink border border-ink hover:bg-ink hover:text-white",
+  danger: "bg-white text-danger border border-danger hover:bg-danger-soft",
+  ghost: "text-ink border border-transparent hover:bg-tint",
 };
-const SIZES = { sm: "px-2.5 py-1.5 text-sm", md: "px-3.5 py-2 text-sm", lg: "px-4 py-3 text-base" };
+const SIZES = {
+  sm: "min-h-9 px-3 text-sm",
+  md: "min-h-10 px-4 text-sm",
+  lg: "min-h-12 px-6 text-[0.9375rem]",
+};
 
 export function Button({
   variant = "secondary",
@@ -25,14 +29,14 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-[2px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
       {...rest}
     />
   );
 }
 
 export const inputClass =
-  "block w-full rounded-lg border border-border bg-surface px-3 py-2 text-base text-text sm:text-sm aria-[invalid=true]:border-danger";
+  "block w-full rounded-[2px] border border-field bg-white px-3 py-2.5 text-base text-ink aria-[invalid=true]:border-danger aria-[invalid=true]:border-2";
 
 /** Label + control + optional hint. `children` receives the generated id. */
 export function Field({
@@ -50,12 +54,12 @@ export function Field({
   const hintId = hint ? `${id}-hint` : undefined;
   return (
     <div className={className}>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-bold">
         {label}
       </label>
       {children(id, hintId)}
       {hint && (
-        <p id={hintId} className="mt-1 text-xs text-muted">
+        <p id={hintId} className="mt-1.5 text-sm text-muted">
           {hint}
         </p>
       )}
@@ -71,16 +75,27 @@ export function Card({
   className?: string;
 }) {
   return (
-    <section className={`rounded-xl border border-border bg-surface p-4 shadow-sm ${className}`}>
+    <section className={`border border-line bg-white p-4 sm:p-5 ${className}`}>
       {children}
     </section>
   );
 }
 
-export function PageHeader({ title, children }: { title: string; children?: React.ReactNode }) {
+export function PageHeader({
+  title,
+  eyebrow,
+  children,
+}: {
+  title: string;
+  eyebrow?: string;
+  children?: React.ReactNode;
+}) {
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
+        <h1 className="display mt-1 text-3xl sm:text-4xl">{title}</h1>
+      </div>
       {children && <div className="flex flex-wrap gap-2">{children}</div>}
     </div>
   );
@@ -94,14 +109,14 @@ export function Notice({
   children: React.ReactNode;
 }) {
   const styles = {
-    info: "border-border bg-brand-soft",
-    success: "border-brand bg-brand-soft",
-    error: "border-danger bg-danger-soft",
+    info: "border-l-brand bg-tint",
+    success: "border-l-success bg-success-soft",
+    error: "border-l-danger bg-danger-soft",
   };
   return (
     <div
       role={kind === "error" ? "alert" : "status"}
-      className={`rounded-lg border p-3 text-sm ${styles[kind]}`}
+      className={`border-l-4 p-3 text-sm leading-relaxed ${styles[kind]}`}
     >
       {children}
     </div>
@@ -109,13 +124,13 @@ export function Notice({
 }
 
 const STATUS_STYLE: Record<PickupStatus, string> = {
-  pending: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100",
-  scheduled: "bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100",
-  picked_up: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100",
-  cancelled: "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100",
+  pending: "border-amber-700 text-amber-900 bg-amber-50",
+  scheduled: "border-brand text-brand-strong bg-tint",
+  picked_up: "border-success text-success bg-success-soft",
+  cancelled: "border-zinc-500 text-zinc-700 bg-zinc-100",
 };
 export const STATUS_LABEL: Record<PickupStatus, string> = {
-  pending: "Pending",
+  pending: "Unassigned",
   scheduled: "Scheduled",
   picked_up: "Picked up",
   cancelled: "Cancelled",
@@ -124,7 +139,7 @@ export const STATUS_LABEL: Record<PickupStatus, string> = {
 export function StatusBadge({ status }: { status: PickupStatus }) {
   return (
     <span
-      className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[status]}`}
+      className={`inline-block rounded-[2px] border px-2 py-0.5 text-xs font-bold ${STATUS_STYLE[status]}`}
     >
       {STATUS_LABEL[status]}
     </span>
@@ -140,10 +155,10 @@ export function GeocodeBadge({ status }: { status: GeocodeStatus }) {
   }[status];
   const style =
     status === "pending"
-      ? "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100"
-      : "bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-100";
+      ? "border-zinc-500 text-zinc-700 bg-zinc-100"
+      : "border-danger text-danger bg-danger-soft";
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${style}`}>
+    <span className={`inline-block rounded-[2px] border px-2 py-0.5 text-xs font-bold ${style}`}>
       {text}
     </span>
   );

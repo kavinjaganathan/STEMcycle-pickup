@@ -120,6 +120,7 @@ describe("geocodePending", () => {
   it("geocodes waiting pickups and records the results", async () => {
     const r = createRepo(pgRpc(db));
     const [slot] = await r.listAvailableSlots(new Date());
+    expect(slot).toBeDefined(); // the dev seed gives drivers weekend hours
     for (const [i, street] of ["1 Good St", "Nowhere Rd"].entries()) {
       await r.createPickup(
         {
@@ -129,9 +130,11 @@ describe("geocodePending", () => {
           address_line: street,
           city: "Frisco",
           zip: "75034",
+          textbook_type: "college",
           book_count: 5,
           notes: null,
-          slot_id: slot.id,
+          slot_date: slot.slot_date,
+          slot_hour: slot.hour,
         },
         `t${i}`,
         new Date(),

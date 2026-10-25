@@ -1,7 +1,5 @@
 import "server-only";
-import { connection } from "next/server";
 import { z } from "zod";
-import { getAuth, type AuthContext, type Role } from "@/lib/auth";
 import { RpcError } from "@/lib/db/repo";
 import { TemporaryGeocodeError } from "@/lib/geocode";
 import { log } from "@/lib/logger";
@@ -24,28 +22,6 @@ const APP_ERRORS: Record<string, string> = {
   pickup_cancelled: "The resident cancelled this pickup.",
   stop_not_yours: "That stop isn't on your route.",
 };
-
-/**
- * Wraps an authenticated route handler: checks the session and role, then maps
- * thrown errors to JSON responses without leaking details.
- */
-export function withAuth<P = unknown>(
-  role: Role | "any",
-  handler: (ctx: AuthContext, request: Request, params: P) => Promise<Response>,
-) {
-  return async (request: Request, context: { params: Promise<P> }) => {
-    // Outside the try: lets Next's prerender bail-out propagate instead of being logged.
-    await connection();
-    try {
-      const auth = await getAuth();
-      if (!auth) return json({ error: "Please sign in." }, 401);
-      if (role !== "any" && auth.user.role !== role) return json({ error: "Not allowed." }, 403);
-      return await handler(auth, request, await context.params);
-    } catch (err) {
-      return errorResponse(err);
-    }
-  };
-}
 
 export function errorResponse(err: unknown) {
   if (err instanceof z.ZodError) {

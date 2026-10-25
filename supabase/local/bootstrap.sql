@@ -14,7 +14,9 @@ exception when duplicate_object then null; end $$;
 create schema if not exists auth;
 create table if not exists auth.users (
   id uuid primary key default gen_random_uuid(),
-  email text unique
+  email text unique,
+  encrypted_password text,          -- local only: scrypt hash (Supabase uses bcrypt)
+  email_confirmed_at timestamptz
 );
 create or replace function auth.uid() returns uuid
 language sql stable as $$

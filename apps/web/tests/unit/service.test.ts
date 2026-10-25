@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { createLocalDb } from "@/lib/db/pglite";
 import { createRepo, pgRpc } from "@/lib/db/repo";
+import { addDriver, openSaturday } from "../db/helpers";
 import { handleCancel, LIMITS, submitPickup, type Deps } from "@/lib/pickups/service";
 
 let db: PGlite;
 let deps: Deps;
 let sent: { to: string; text: string }[];
-let slotId: string;
+let slot: string;
 
 function form(overrides: Record<string, unknown> = {}) {
   return {
@@ -17,8 +18,9 @@ function form(overrides: Record<string, unknown> = {}) {
     address_line: "1 Main St",
     city: "Frisco",
     zip: "75033",
+    textbook_type: "elementary",
     book_count: "20",
-    slot_id: slotId,
+    slot,
     notes: "",
     website: "",
     turnstileToken: "ok",
@@ -28,10 +30,10 @@ function form(overrides: Record<string, unknown> = {}) {
 
 beforeEach(async () => {
   db = await createLocalDb();
-  const { rows } = await db.query<{ id: string }>(
-    "insert into slots (slot_date, start_time, end_time, capacity) values (current_date + 3, '09:00', '12:00', 10) returning id",
-  );
-  slotId = rows[0].id;
+  const sat = await openSaturday(db);
+  await addDriver(db, { hours: { [sat]: [10] } });
+  await db.exec("update settings set stops_per_driver_hour = 10");
+  slot = `${sat}T10`;
   sent = [];
   deps = {
     repo: createRepo(pgRpc(db)),

@@ -1,13 +1,14 @@
 "use client";
 
 import { useId, useMemo, useRef, useState } from "react";
-import type { AvailableSlot, SlotWindow } from "@/lib/db/repo";
-import { formatSlot, formatSlotDate, formatWindow } from "@/lib/format";
+import { formatHourRange, formatSlot, formatSlotDate, TEXTBOOK_LABEL } from "@/lib/format";
+import { TEXTBOOK_TYPES, type AvailableSlot } from "@/lib/shared";
 import type { SubmitBody } from "@/lib/pickups/service";
 import {
   fieldErrors as toFieldErrors,
   OUT_OF_AREA_MESSAGE,
   pickupFormSchema,
+  slotValue,
   type FieldErrors,
   type PickupFormInput,
 } from "@/lib/validation";
@@ -22,8 +23,9 @@ const FIELD_LABELS: Partial<Record<Field, string>> = {
   address_line: "Street address",
   city: "City",
   zip: "ZIP code",
+  textbook_type: "Type of textbooks",
   book_count: "Approximate number of books",
-  slot_id: "Pickup window",
+  slot: "Pickup time",
   notes: "Notes",
 };
 
@@ -43,6 +45,7 @@ export function PickupForm({
   const [done, setDone] = useState<Extract<SubmitBody, { ok: true }> | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | undefined>();
   const [turnstileReset, setTurnstileReset] = useState(0);
+  const [day, setDay] = useState<string | null>(initialSlots[0]?.slot_date ?? null);
   const summaryRef = useRef<HTMLDivElement>(null);
   const doneRef = useRef<HTMLHeadingElement>(null);
 
@@ -51,6 +54,8 @@ export function PickupForm({
     for (const s of slots) groups.set(s.slot_date, [...(groups.get(s.slot_date) ?? []), s]);
     return [...groups.entries()];
   }, [slots]);
+  const daySlots = slotsByDate.find(([d]) => d === day)?.[1] ?? slotsByDate[0]?.[1] ?? [];
+  const activeDay = daySlots[0]?.slot_date ?? null;
 
   function showErrors(errs: FieldErrors, message: string) {
     setErrors(errs);
@@ -117,7 +122,8 @@ export function PickupForm({
   if (slots.length === 0) {
     return (
       <p role="status">
-        No pickup windows are open right now. Please check back soon — we add new dates every week.
+        No pickup times are open right now. Our volunteer drivers add weekend hours every week,
+        so please check back soon.
       </p>
     );
   }
@@ -135,9 +141,9 @@ export function PickupForm({
           ref={summaryRef}
           tabIndex={-1}
           role="alert"
-          className="rounded-lg border border-danger bg-danger-soft p-4 text-sm"
+          className="border-l-4 border-danger bg-danger-soft p-4 text-sm"
         >
-          <p className="font-semibold">{formError}</p>
+          <p className="font-bold">{formError}</p>
           {errorEntries.length > 0 && (
             <ul className="mt-2 list-disc space-y-1 pl-5">
               {errorEntries.map(([field, msg]) => (
@@ -153,7 +159,7 @@ export function PickupForm({
       )}
 
       <fieldset className="space-y-4">
-        <legend className="text-lg font-semibold">Your contact details</legend>
+        <legend className="mb-1 text-xl font-extrabold tracking-tight">Your contact details</legend>
         <TextField name="name" label="Full name" autoComplete="name" error={errors.name} />
         <TextField
           name="email"
@@ -174,7 +180,7 @@ export function PickupForm({
       </fieldset>
 
       <fieldset className="space-y-4">
-        <legend className="text-lg font-semibold">Pickup address</legend>
+        <legend className="mb-1 text-xl font-extrabold tracking-tight">Pickup address</legend>
         <TextField
           name="address_line"
           label="Street address"
@@ -196,7 +202,15 @@ export function PickupForm({
       </fieldset>
 
       <fieldset className="space-y-4">
-        <legend className="text-lg font-semibold">Your books</legend>
+        <legend className="mb-1 text-xl font-extrabold tracking-tight">Your books</legend>
+        <SelectField label="Type of textbooks" name="textbook_type" error={errors.textbook_type}>
+          <option value="">Choose one…</option>
+          {TEXTBOOK_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {TEXTBOOK_LABEL[t]}
+            </option>
+          ))}
+        </SelectField>
         <TextField
           name="book_count"
           label="Approximate number of books"
@@ -204,22 +218,66 @@ export function PickupForm({
           inputMode="numeric"
           min={1}
           max={2000}
-          hint="A rough count is fine. A full grocery bag holds about 15–20 textbooks."
+          hint="A rough count is fine. A moving box holds about 20 textbooks."
           error={errors.book_count}
         />
-        <SelectField label="Pickup window" name="slot_id" error={errors.slot_id}>
-          <option value="">Choose a date and time…</option>
-          {slotsByDate.map(([date, daySlots]) => (
-            <optgroup key={date} label={formatSlotDate(date)}>
+      </fieldset>
+
+      <fieldset
+        id="f-slot"
+        tabIndex={-1}
+        className="space-y-4"
+        aria-describedby={errors.slot ? "slot-error" : "slot-hint"}
+      >
+        <legend className="mb-1 text-xl font-extrabold tracking-tight">Pickup time</legend>
+        <p id="slot-hint" className="text-sm text-muted">
+          We pick up on Saturdays and Sundays. Each time is a 1-hour window when a volunteer
+          driver is available.
+        </p>
+        <div role="group" aria-label="Day">
+          <p className="mb-2 text-sm font-bold" aria-hidden="true">
+            Day
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {slotsByDate.map(([date]) => (
+              <label key={date} className={chipClass}>
+                <input
+                  type="radio"
+                  name="slot_day"
+                  value={date}
+                  checked={activeDay === date}
+                  onChange={() => setDay(date)}
+                  className="sr-only"
+                />
+                {formatSlotDate(date, "short")}
+              </label>
+            ))}
+          </div>
+        </div>
+        {activeDay && (
+          <div role="radiogroup" aria-label={`Times on ${formatSlotDate(activeDay)}`}>
+            <p className="mb-2 text-sm font-bold" aria-hidden="true">
+              Time on {formatSlotDate(activeDay)}
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {daySlots.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {formatWindow(s)}
-                  {s.remaining !== null && s.remaining <= 5 ? ` (${s.remaining} left)` : ""}
-                </option>
+                <label key={slotValue(s)} className={chipClass}>
+                  <input type="radio" name="slot" value={slotValue(s)} className="sr-only" />
+                  {formatHourRange(s.hour)}
+                </label>
               ))}
-            </optgroup>
-          ))}
-        </SelectField>
+            </div>
+          </div>
+        )}
+        {errors.slot && (
+          <p id="slot-error" className="text-sm font-bold text-danger">
+            {errors.slot}
+          </p>
+        )}
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="mb-1 text-xl font-extrabold tracking-tight">Anything else?</legend>
         <TextAreaField
           name="notes"
           label="Notes (optional)"
@@ -245,7 +303,7 @@ export function PickupForm({
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-lg bg-brand px-4 py-3 text-base font-semibold text-on-brand hover:bg-brand-strong disabled:opacity-60 sm:w-auto"
+        className="min-h-12 w-full rounded-[2px] border border-ink bg-ink px-6 text-[0.9375rem] font-bold text-white transition-colors hover:border-brand-strong hover:bg-brand-strong disabled:opacity-60 sm:w-auto"
       >
         {submitting ? "Scheduling…" : "Schedule pickup"}
       </button>
@@ -262,19 +320,20 @@ function Confirmation({
 }) {
   return (
     <div className="space-y-3" role="status">
-      <h2 ref={headingRef} tabIndex={-1} className="text-xl font-bold">
+      <p className="eyebrow">Pickup booked</p>
+      <h2 ref={headingRef} tabIndex={-1} className="display text-3xl">
         You&apos;re all set — thank you!
       </h2>
       {result.slot && (
         <p>
-          We&apos;ll come by on <strong>{formatSlot(result.slot as SlotWindow)}</strong>. Please
-          leave your books by the front door before the window starts.
+          We&apos;ll come by on <strong>{formatSlot(result.slot)}</strong>. Please leave your
+          books by the front door before your hour starts.
         </p>
       )}
       {result.emailSent ? (
         <p className="text-muted">A confirmation email with a cancel link is on its way.</p>
       ) : (
-        <div className="rounded-lg border border-border bg-brand-soft p-4 text-sm">
+        <div className="border-l-4 border-brand bg-tint p-4 text-sm">
           <p>
             We couldn&apos;t send your confirmation email. Your pickup is still booked. Save this
             link in case you need to cancel:
@@ -291,7 +350,10 @@ function Confirmation({
 }
 
 const inputClass =
-  "mt-1 block w-full rounded-lg border bg-surface px-3 py-2.5 text-base text-text placeholder:text-muted aria-[invalid=true]:border-danger border-border";
+  "mt-1.5 block w-full rounded-[2px] border border-field bg-white px-3 py-2.5 text-base text-ink placeholder:text-muted aria-[invalid=true]:border-2 aria-[invalid=true]:border-danger";
+
+const chipClass =
+  "flex min-h-11 cursor-pointer items-center justify-center rounded-[2px] border border-field bg-white px-4 text-sm font-bold text-ink transition-colors hover:border-ink has-[:checked]:border-ink has-[:checked]:bg-ink has-[:checked]:text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand";
 
 function useFieldIds(name: string, hint?: string, error?: string) {
   const uid = useId();
@@ -324,7 +386,7 @@ function FieldShell({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block font-medium">
+      <label htmlFor={id} className="block font-bold">
         {label}
       </label>
       {hint && (
@@ -334,7 +396,7 @@ function FieldShell({
       )}
       {children}
       {error && (
-        <p id={errorId} className="mt-1 text-sm font-medium text-danger">
+        <p id={errorId} className="mt-1.5 text-sm font-bold text-danger">
           {error}
         </p>
       )}

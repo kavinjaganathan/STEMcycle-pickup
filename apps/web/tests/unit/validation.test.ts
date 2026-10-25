@@ -8,8 +8,9 @@ const valid = {
   address_line: "1 Main St",
   city: "Frisco",
   zip: "75033-1234",
+  textbook_type: "middle_school",
   book_count: "12",
-  slot_id: "6f1c1b5e-4a3e-4c7e-9d2a-1b2c3d4e5f60",
+  slot: "2026-10-31T10",
   notes: "",
 };
 
@@ -21,7 +22,9 @@ describe("pickupFormSchema", () => {
       email: "ada@example.com",
       phone: "2145550100",
       zip: "75033",
+      textbook_type: "middle_school",
       book_count: 12,
+      slot: { slot_date: "2026-10-31", slot_hour: 10 },
       notes: null,
     });
   });
@@ -32,7 +35,9 @@ describe("pickupFormSchema", () => {
     ["zip", "7503"],
     ["book_count", "0"],
     ["book_count", "2.5"],
-    ["slot_id", "abc"],
+    ["slot", "abc"],
+    ["slot", "2026-10-31T24"],
+    ["textbook_type", "comics"],
     ["name", "A"],
     ["notes", "x".repeat(501)],
   ])("rejects bad %s (%s)", (field, value) => {

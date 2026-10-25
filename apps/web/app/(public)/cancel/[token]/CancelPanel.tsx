@@ -82,7 +82,7 @@ export function CancelPanel() {
         type="button"
         onClick={cancel}
         disabled={busy}
-        className="w-full rounded-lg bg-danger px-4 py-3 font-semibold text-white disabled:opacity-60 sm:w-auto dark:text-black"
+        className="min-h-12 w-full rounded-[2px] border border-danger bg-danger px-6 font-bold text-white disabled:opacity-60 sm:w-auto"
       >
         {busy ? "Cancelling…" : "Yes, cancel my pickup"}
       </button>

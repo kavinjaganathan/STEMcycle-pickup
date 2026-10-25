@@ -1,4 +1,8 @@
 import "server-only";
+import type { AvailableSlot, Slot, TextbookType } from "@/lib/shared";
+
+export type { AvailableSlot, Slot, TextbookType } from "@/lib/shared";
+export { TEXTBOOK_TYPES } from "@/lib/shared";
 
 /**
  * Typed wrappers around the SQL functions in supabase/migrations. The same
@@ -11,18 +15,10 @@ export type PublicSettings = {
   org_name: string;
   timezone: string;
   zip_allowlist: string[];
-  booking_cutoff_hours: number;
   email_display_name: string;
   reply_to: string | null;
+  books_per_box: number;
 };
-
-export type SlotWindow = {
-  slot_date: string; // YYYY-MM-DD
-  start_time: string; // HH:MM:SS
-  end_time: string;
-};
-
-export type AvailableSlot = SlotWindow & { id: string; remaining: number | null };
 
 export type NewPickup = {
   name: string;
@@ -31,16 +27,18 @@ export type NewPickup = {
   address_line: string;
   city: string;
   zip: string;
+  textbook_type: TextbookType;
   book_count: number;
   notes: string | null;
-  slot_id: string;
+  slot_date: string;
+  slot_hour: number;
 };
 
 export type CreatePickupResult =
-  | { result: "ok"; pickup_id: string; slot: SlotWindow }
+  | { result: "ok"; pickup_id: string; slot: Slot }
   | { result: "out_of_area" | "slot_unavailable" | "slot_full" };
 
-export type CancelLookup = SlotWindow & {
+export type CancelLookup = Slot & {
   status: "pending" | "scheduled" | "picked_up" | "cancelled";
 };
 
@@ -60,15 +58,7 @@ export function createRepo(rpc: Rpc) {
 
     createPickup: async (p: NewPickup, cancelTokenHash: string, now: Date) =>
       (await rpc("create_pickup", {
-        p_name: p.name,
-        p_email: p.email,
-        p_phone: p.phone,
-        p_address_line: p.address_line,
-        p_city: p.city,
-        p_zip: p.zip,
-        p_book_count: p.book_count,
-        p_notes: p.notes,
-        p_slot_id: p.slot_id,
+        p,
         p_cancel_token_hash: cancelTokenHash,
         p_now: now.toISOString(),
       })) as CreatePickupResult,
@@ -81,6 +71,13 @@ export function createRepo(rpc: Rpc) {
 
     runMaintenance: async () =>
       (await rpc("run_maintenance")) as { anonymized: number; plans_removed: number },
+    registerDriver: (id: string, d: { full_name: string; phone: string; capacity_boxes: number }) =>
+      rpc("register_driver", {
+        p_id: id,
+        p_full_name: d.full_name,
+        p_phone: d.phone,
+        p_capacity: d.capacity_boxes,
+      }),
     healthCheck: async () => (await rpc("health_check")) === true,
 
     rateLimitHit: async (key: string, windowSeconds: number, max: number) =>
