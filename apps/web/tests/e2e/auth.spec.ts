@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { E2E_DATA } from "../../playwright.config";
 import { expect, test } from "./fixtures";
 import { expectNoAxeViolations } from "./helpers";
 
@@ -17,6 +20,15 @@ test("a new driver signs up, signs in and waits for approval", async ({ page }, 
   await page.getByLabel("Password").fill("a good long password");
   await page.getByRole("button", { name: "Sign up" }).click();
   await expect(page.getByText(/Thanks for signing up!/)).toBeFocused();
+  await expect
+    .poll(() => {
+      const dir = path.join(E2E_DATA, "outbox");
+      return fs
+        .readdirSync(dir)
+        .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), "utf8")))
+        .some((m) => m.to === email && /Thanks for signing up/.test(m.subject));
+    })
+    .toBe(true);
 
   // Signing up again with the same email looks identical (no account probing).
   const again = await page.request.post("/api/auth/signup", {

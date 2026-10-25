@@ -73,32 +73,29 @@ export type SignupInput = {
 };
 
 /**
- * Creates a pending driver account. On Supabase this returns a one-time email
- * confirmation link (sent by our own mailer); locally the email counts as
- * confirmed. Returns null if the email already has an account; the caller
+ * Creates a pending driver account (no access until the admin approves it).
+ * On Supabase this uses the admin API, which works with public sign-ups
+ * turned off. Returns false if the email already has an account; the caller
  * answers the same either way, so sign-up can't be used to probe emails.
  */
-export async function createDriverAccount(
-  input: SignupInput,
-): Promise<{ confirmUrl: string | null } | null> {
+export async function createDriverAccount(input: SignupInput): Promise<boolean> {
   let id: string;
-  let confirmUrl: string | null = null;
   if (env.dataBackend === "supabase") {
-    const { data, error } = await serviceClient().auth.admin.generateLink({
-      type: "signup",
+    const { data, error } = await serviceClient().auth.admin.createUser({
       email: input.email,
       password: input.password,
+      // The admin reviews every sign-up (and its email) before approving it.
+      email_confirm: true,
     });
     if (error || !data.user) {
-      if (error?.code === "email_exists" || error?.status === 422) return null;
+      if (error?.code === "email_exists" || error?.status === 422) return false;
       throw new Error("create_user_failed");
     }
     id = data.user.id;
-    confirmUrl = authLink(data.properties.hashed_token, "signup");
   } else {
     const db = await getLocalDb();
     const exists = await db.query("select 1 from auth.users where email = $1", [input.email]);
-    if (exists.rows.length) return null;
+    if (exists.rows.length) return false;
     const { rows } = await db.query<{ id: string }>(
       "insert into auth.users (email, encrypted_password, email_confirmed_at) values ($1, $2, now()) returning id",
       [input.email, await hashPassword(input.password)],
@@ -106,11 +103,11 @@ export async function createDriverAccount(
     id = rows[0].id;
   }
   await (await getRepo()).registerDriver(id, input);
-  return { confirmUrl };
+  return true;
 }
 
 /** One-time link handled by /auth/confirm (the token travels once, then is spent). */
-function authLink(tokenHash: string, type: "signup" | "recovery") {
+function authLink(tokenHash: string, type: "recovery") {
   return `${env.appUrl}/auth/confirm?token_hash=${encodeURIComponent(tokenHash)}&type=${type}`;
 }
 

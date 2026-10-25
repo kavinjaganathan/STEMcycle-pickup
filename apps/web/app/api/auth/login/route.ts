@@ -19,8 +19,7 @@ export async function POST(request: Request) {
     if (!(await signInDriver(email, password))) {
       return json(
         {
-          error:
-            "Email or password is incorrect, or your email isn't confirmed yet (check your inbox).",
+          error: "Email or password is incorrect.",
         },
         400,
       );

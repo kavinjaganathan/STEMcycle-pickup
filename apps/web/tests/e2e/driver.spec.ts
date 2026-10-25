@@ -1,11 +1,5 @@
 import { expect, recordContext, test, type Browser } from "./fixtures";
-import {
-  blockMapTiles,
-  bookPickup,
-  expectNoAxeViolations,
-  signInAs,
-  type Slot,
-} from "./helpers";
+import { blockMapTiles, bookPickup, expectNoAxeViolations, signInAs, type Slot } from "./helpers";
 
 test.beforeEach(({ page }) => blockMapTiles(page));
 

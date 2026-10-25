@@ -88,26 +88,16 @@ export function confirmationEmail(p: {
   return { subject, text, html };
 }
 
-export function driverConfirmEmail(p: { orgName: string; name: string; confirmUrl: string }) {
-  const subject = `Confirm your ${p.orgName} driver account`;
-  const text = [
-    `Hi ${p.name},`,
-    "",
-    "Thanks for signing up to drive. Confirm your email address:",
-    p.confirmUrl,
-    "",
-    "After that, an admin will review and approve your account.",
-    "",
-    `— ${p.orgName}`,
-  ].join("\n");
+export function driverWelcomeEmail(p: { orgName: string; name: string }) {
+  const subject = `Thanks for signing up to drive for ${p.orgName}`;
+  const line =
+    "We've received your driver sign-up. An admin will review it and email you when your account is approved; then you can add the weekend hours you're free.";
+  const text = [`Hi ${p.name},`, "", line, "", `— ${p.orgName}`].join("\n");
   const html = layout({
     orgName: p.orgName,
     eyebrow: "Driver sign-up",
-    title: "Confirm your email",
-    body: para(
-      `Hi ${p.name}, thanks for signing up to drive. Confirm your email address, then an admin will review and approve your account.`,
-    ),
-    button: { href: p.confirmUrl, label: "Confirm email" },
+    title: "Thanks for signing up",
+    body: para(`Hi ${p.name}. ${line}`),
   });
   return { subject, text, html };
 }

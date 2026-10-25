@@ -1,46 +1,60 @@
 # StemCycle Pickup
 
-A web app for StemCycle's textbook drive. Residents in Frisco, Plano, McKinney and
-nearby cities book a free doorstep pickup. Admins plan optimized driver routes.
-Volunteer drivers follow their route on their phones.
+Residents in Frisco, Plano, McKinney and nearby cities book a free weekend doorstep
+pickup of used textbooks. Volunteer drivers say when they're free, and the app builds
+their routes automatically.
 
 | Who | Where | What |
 |---|---|---|
-| Residents | `/` | Book a pickup (no account), get a confirmation email, cancel from the emailed link |
-| Admins | `/admin` | Pickups (filter, update, CSV export), pickup windows, vehicles, depots, team, settings, route planner |
-| Drivers | `/driver` | Their own stop list with ETAs, Google/Apple Maps links, a "picked up" button, and offline sync |
+| Residents | `/` | Book a 1-hour Saturday/Sunday slot (only hours a driver is free), get a confirmation email with a cancel link. No account. |
+| Drivers | `/drive`, `/signup`, `/driver` | Sign up (name, phone, vehicle capacity in boxes), wait for approval, set weekend hours, follow their route: ETAs, Maps links, "Mark picked up" (works offline). |
+| Admin | `/admin` | One shared login. Pickups (filters, CSV), drivers (approve, capacity), routes (map, unassigned, reassign, re-run), settings (depot). |
 
-## How it fits together
-
-```
-Browser ──► Next.js on Vercel (apps/web) ──► Supabase Postgres + Auth (RLS on every table)
-                 │
-                 ├─► Nominatim (geocoding)            free, 1 req/s, cached
-                 ├─► OpenRouteService / OSRM           road travel times + route lines
-                 ├─► OR-Tools solver on Render         (services/solver), receives numbers only
-                 ├─► Gmail SMTP or Resend              confirmation emails
-                 └─► Cloudflare Turnstile              spam check on the public form
-```
+## How it works
 
 ```
-apps/web/              Next.js 16 app (UI + API)
-  app/                 pages, layouts and API route handlers
-  components/          UI (admin/, driver/, map/)
-  lib/                 db access, auth, validation, email, geocoding, routing/
+Browser ─► Next.js on Vercel (apps/web) ─► Supabase Postgres + Auth (RLS; rules in SQL functions)
+               ├─► Nominatim             geocoding (free, 1 req/s, cached by address hash)
+               ├─► OpenRouteService/OSRM road travel times + route lines
+               ├─► OR-Tools on Render    services/solver (gets numbers only, never addresses)
+               ├─► Gmail SMTP or Resend  emails
+               └─► Cloudflare Turnstile  spam check on public forms
+pg_cron (in Supabase) ─► /api/internal/routing/tick, only when a weekend needs work
+```
+
+**Routing.** A weekend is planned per day. Each run of a driver's consecutive hours
+(e.g. Sat 10–1) becomes a vehicle that leaves the depot at the start and must be back
+within the return buffer (45 min) after the end. Each pickup is a stop that must be
+served inside its 1-hour slot, by a driver free that hour, within vehicle capacity
+(books ÷ 20 = boxes) and max route length. OR-Tools solves it; if the solver is
+asleep or down, a nearest-neighbour + 2-opt planner does. Pickups that can't be placed
+are marked **unassigned** with the reason.
+
+**Automatic re-runs.** Bookings, cancellations, availability, capacity, location and
+settings changes mark the weekend "dirty". When a weekend has had no changes for
+2 minutes, it is re-planned once. On the Friday before (6 PM by default) the weekend
+**locks**: bookings and availability close, a final plan runs, and each driver gets
+an email. After that only the admin changes routes, and affected drivers are emailed.
+
+**Admin overrides.** On the Routes page the admin can assign a stop to a specific
+driver. The assignment sticks through later re-runs.
+
+```
+apps/web/              Next.js 16 app (pages, API, UI)
+  lib/routing/         plan (problem builder), fallback solver, scheduler, matrix
   tests/               unit/ db/ integration/ (Vitest) and e2e/ (Playwright + axe)
-services/solver/       FastAPI + OR-Tools route solver (Docker, deployed via render.yaml)
-supabase/migrations/   schema, row-level security and SQL functions (run in order)
-supabase/seed.sql      optional demo data (windows, a depot, two SUVs)
+services/solver/       FastAPI + OR-Tools (Docker; deployed by render.yaml)
+supabase/migrations/   schema, RLS, SQL functions (run in order)
+supabase/cron.sql      pg_cron schedule (run once after deploying)
+supabase/seed.sql      optional: a demo depot
 ```
 
-All business rules live in SQL functions: slot capacity, cancelling, rate limits,
-admin/driver permissions, publishing routes and data retention. Locally the same
-migrations run in an embedded Postgres (PGlite), so development and tests need no
-cloud accounts.
+Why not Vite + Cloudflare: OR-Tools needs Python (not Workers). D1 has no row-level
+security. Supabase gives hashed-password auth and pg_cron for free.
 
 ## Local development
 
-You need Node 20 or newer. For the solver (optional), you need Python 3.12 or newer.
+You need Node 20 or newer. The solver is optional and needs Python 3.12 or newer.
 
 ```bash
 cd apps/web
@@ -49,204 +63,127 @@ cp .env.example .env.local
 npm run dev                     # http://localhost:3000
 ```
 
-- **Signing in:** open `/login` and choose **Sign in as Alex Admin / Dana Driver /
-  Sam Driver**. This works only with the local database and is disabled on any
-  hosted deployment.
-- **Emails** are written to `apps/web/.data/outbox/` instead of being sent.
-- **Resetting the database:** delete `apps/web/.data/pglite`.
-- **Working offline:** `GEOCODER=fake` and `ROUTING_PROVIDER=fake` use made-up
-  coordinates and travel times (local only).
+- **Data:** an embedded Postgres (PGlite) in `apps/web/.data/pglite`, seeded with a
+  depot and drivers Dana and Sam (with hours on the next four weekends) plus Pat (pending).
+  To reset, delete the folder.
+- **Signing in:** `/login` has **Sign in as Admin / Dana / Sam / Pat** buttons (local only).
+  The admin login form also works with `admin@stemcycle.local` / `stemcycle-admin`.
+- **Email:** messages are written to `apps/web/.data/outbox/` instead of being sent.
+- **Routing:** a timer inside the dev server does the pg_cron job (every 30 s).
+  `GEOCODER=fake` and `ROUTING_PROVIDER=fake` work offline with made-up coordinates
+  and travel times.
 - **Solver (optional):**
-
   ```bash
   cd services/solver
   python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
   SOLVER_SECRET=dev .venv/bin/uvicorn app:app --port 8000
-  # then add to apps/web/.env.local:  SOLVER_URL=http://localhost:8000   SOLVER_SECRET=dev
+  # then in apps/web/.env.local: SOLVER_URL=http://localhost:8000  SOLVER_SECRET=dev
   ```
-
-  Without it, the route planner uses its built-in fallback.
 
 ### Tests
 
 ```bash
 cd apps/web
 npm run lint && npm run typecheck
-npm test                                    # unit + database tests (PGlite)
-npx playwright install chromium             # first time only
-npm run test:e2e                            # builds the app; browser tests on phone + desktop
+npm test                          # unit + database (PGlite)
+npx playwright install chromium   # first time only
+npm run test:e2e                  # builds the app; phone + desktop, axe, PII leak check
 cd ../../services/solver && .venv/bin/python -m pytest -q
 ```
 
-The end-to-end suite also checks:
-- accessibility with axe on every page;
-- no horizontal scrolling on phones;
-- security headers;
-- that **no test resident's name, email, phone or street appears in any server log
-  line or browser request URL** (`tests/e2e/teardown.ts`).
+The e2e teardown fails the run if any test resident's name, email, phone or street
+appears in a server log line or a browser request URL. CI runs everything on each push.
 
-CI runs all of this on every push (`.github/workflows/ci.yml`).
+## Deploying (free tiers)
 
-## Deploying (all free tiers)
+Keep every secret in the hosting dashboards, never in git.
 
-Do these in order. Keep every secret in the hosting dashboards, never in git.
-
-### 0. Put the code on GitHub
-
-Vercel and Render deploy from a GitHub repository. Create a private repo and push
-this folder to it.
-
-### 1. Supabase (database + logins)
-
-1. **Create the project.** At https://supabase.com, create a project (region:
-   *East US* or *Central US*). Save the database password.
-2. **Run the migrations.** In **SQL Editor**, run each file in
-   `supabase/migrations/` in order (`0001` … `0006`). Optionally run
-   `supabase/seed.sql` for demo windows, a depot and two SUVs; you can also add
-   these in the app.
-3. **Lock down sign-ups.** Under **Authentication → Sign In / Providers → Email**,
-   turn **off** "Allow new users to sign up". Admins add people from the app.
-4. **Set the URLs.** Under **Authentication → URL Configuration**:
-   - Site URL: `https://<your-app>.vercel.app`
-   - Redirect URLs: `https://<your-app>.vercel.app/auth/callback`
-5. **Send sign-in links through your email account.** Under **Authentication →
-   Emails → SMTP Settings**, enable custom SMTP:
-   - Host `smtp.gmail.com`, port `465`
-   - Username: your Gmail address
-   - Password: a Gmail App Password (see step 4 below)
-
-   Supabase's built-in email is limited to a few messages per hour.
-6. **Create the first admin.** Under **Authentication → Users → Add user**, enter
-   your email and a password, and tick *Auto confirm*. Then run in the SQL Editor:
-
-   ```sql
-   update profiles set role = 'admin', active = true, full_name = 'Your Name'
-   where id = (select id from auth.users where email = 'you@example.org');
-   ```
-
-7. **Copy the keys.** From **Project Settings → API**, copy the Project URL, the
-   `anon` key and the `service_role` key. The service role key is secret and
-   server-only.
-
-### 2. Render (route solver)
-
-1. At https://render.com, choose **New → Blueprint**, pick the repo, and apply
-   `render.yaml`. This creates `stemcycle-solver` on the free plan and generates
-   `SOLVER_SECRET`.
-2. Copy the service URL (`https://stemcycle-solver-xxxx.onrender.com`) and the
-   generated `SOLVER_SECRET`.
-
-The free plan sleeps after 15 minutes idle, so the first route plan of the day can
-take about a minute while it wakes up. If it's still waking after 90 seconds, the
-app uses the fallback planner and says so. Re-plan a minute later for the optimized
-result.
-
-### 3. Other free keys
-
-- **OpenRouteService:** sign up at https://openrouteservice.org/dev/#/signup and
-  copy the API key (2,000 requests a day).
-- **Cloudflare Turnstile:** go to https://dash.cloudflare.com → **Turnstile → Add
-  site**, enter your Vercel domain, and copy the site key and the secret key.
-
-### 4. Gmail App Password (confirmation emails)
-
-1. Turn on 2-Step Verification for the sending Google account.
-2. Create an App Password at https://myaccount.google.com/apppasswords.
-
-Gmail allows about 500 emails a day.
-
-### 5. Vercel (the web app)
-
-1. At https://vercel.com, choose **Add New → Project**, pick the repo, and set
-   **Root Directory** to `apps/web`.
-2. Add these **Environment Variables** for Production:
+1. **GitHub.** Push this folder to a private repository.
+2. **Supabase** (https://supabase.com, region *US East/Central*):
+   1. In **SQL Editor**, run `supabase/migrations/0001…0006` in order. Optionally run `seed.sql`.
+   2. Under **Authentication → Sign In / Providers → Email**, turn **off** "Allow new
+      users to sign up". The app creates driver accounts itself.
+   3. Under **Authentication → URL Configuration**, set Site URL to `https://<your-app>.vercel.app`.
+   4. Under **Integrations**, enable **pg_cron** and **pg_net** (the next step can also create them).
+   5. From **Project Settings → API**, copy the URL, the `anon` key and the `service_role` key.
+3. **Render** (https://render.com): **New → Blueprint**, then pick the repo. This creates
+   `stemcycle-solver` from `render.yaml`. Copy its URL and the generated `SOLVER_SECRET`.
+4. **Free keys:**
+   - OpenRouteService key: https://openrouteservice.org/dev/#/signup
+   - Cloudflare Turnstile site and secret keys: dash.cloudflare.com → Turnstile
+   - A Gmail App Password: needs 2-Step Verification; create it at
+     https://myaccount.google.com/apppasswords
+5. **Admin password hash:** `node apps/web/scripts/hash-admin-password.mjs`. It prompts
+   for the password and prints `ADMIN_PASSWORD_HASH=…`.
+6. **Vercel** (https://vercel.com): **Add New → Project**, set **Root Directory** to
+   `apps/web`, then add these environment variables:
 
    | Variable | Value |
    |---|---|
-   | `APP_URL` | `https://<your-app>.vercel.app` (or your custom domain) |
+   | `APP_URL` | `https://<your-app>.vercel.app` |
    | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | from Supabase |
-   | `EMAIL_PROVIDER` | `smtp` |
-   | `EMAIL_FROM`, `SMTP_USER` | the sending Gmail address |
-   | `SMTP_PASS` | the Gmail App Password |
-   | `SMTP_HOST`, `SMTP_PORT` | `smtp.gmail.com`, `465` |
+   | `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH` | the shared admin login |
+   | `ADMIN_SESSION_SECRET`, `RATE_LIMIT_SALT`, `CRON_SECRET` | each `openssl rand -hex 32` |
+   | `EMAIL_PROVIDER` = `smtp`, `EMAIL_FROM`, `SMTP_USER` | the sending Gmail address |
+   | `SMTP_PASS` (`SMTP_HOST`/`SMTP_PORT` default to Gmail 465) | the App Password |
    | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | from Cloudflare |
    | `ORS_API_KEY` | from OpenRouteService |
    | `SOLVER_URL`, `SOLVER_SECRET` | from Render |
-   | `RATE_LIMIT_SALT` | output of `openssl rand -hex 32` |
-   | `CRON_SECRET` | output of `openssl rand -hex 32` |
-   | `NOMINATIM_CONTACT_EMAIL` | optional; defaults to `EMAIL_FROM` |
 
-3. Deploy. `vercel.json` schedules `/api/cron/daily` once a day. It does three
-   things:
-   - deletes personal details of pickups older than the retention period;
-   - retries any addresses that couldn't be located;
-   - touches the database, which stops the free Supabase project from pausing
-     after 7 days.
+7. **Automatic routing:** in Supabase's SQL Editor, open `supabase/cron.sql`, replace
+   the app URL and `CRON_SECRET`, and run it once. Every minute it checks inside the
+   database whether any weekend needs work, and only then calls the app. Vercel's
+   daily cron (`vercel.json`) also runs data retention, geocoding retries and a
+   routing tick as a backup, and keeps the free Supabase project from pausing.
+8. **Smoke test:**
+   1. `/api/health` returns `{"status":"ok"}`.
+   2. Sign in at `/admin/login` and set the depot (**Settings → Find coordinates**).
+   3. Sign up a test driver at `/signup`, approve them under **Drivers**, and add their hours.
+   4. Book a pickup at `/` in one of those hours.
+   5. About 2–3 minutes later, the route appears under **Routes** and on the driver's phone.
 
-### 6. Smoke test
-
-1. Open `https://<your-app>/api/health`. It should return `{"status":"ok"}`.
-2. Book a pickup on `/` with your own address. The confirmation email should arrive,
-   and the cancel link should work.
-3. Sign in at `/login`. Add a depot (use **Find coordinates**) and check the
-   vehicles. Add a driver under **Team**; they get a one-time temporary password.
-4. Plan routes for a day with pickups and publish them. Sign in as the driver on a
-   phone.
-
-### Changing the sending email later
-
-Update `EMAIL_FROM`, `SMTP_USER` and `SMTP_PASS` in Vercel and redeploy. Update the
-SMTP settings in Supabase too, since they send the sign-in links. No code changes
-are needed. If you get a domain, you can switch to `EMAIL_PROVIDER=resend`.
+**Changing the sending email:** update `EMAIL_FROM`, `SMTP_USER` and `SMTP_PASS` in
+Vercel and redeploy. No code changes are needed. All emails, including password
+resets, go through this account.
+**Changing the admin password:** generate a new hash, update `ADMIN_PASSWORD_HASH`,
+and redeploy. Existing admin sessions end.
 
 ## Privacy and security
 
 - **Access**
   - HTTPS only (HSTS).
-  - Admin and driver data is protected by Postgres row-level security as well as
-    API checks.
-  - Drivers see only their own published routes, without residents' emails.
-  - New accounts start inactive; only admins activate people.
+  - Admin pages and APIs need the signed admin cookie: 12-hour sessions, bound to the
+    current credentials. Admin logins are rate limited per IP and globally.
+  - Drivers read data only through SQL functions that filter to their own routes.
+    Route tables have no direct-read policies. Drivers never see resident emails.
+  - New driver accounts can't do anything until the admin approves them.
+- **Passwords**
+  - Driver passwords are bcrypt (Supabase Auth); the admin password is scrypt.
+  - Sign-up gives the same answer for existing emails, so it can't be used to probe accounts.
 - **No PII in URLs or logs**
-  - Cancel links use 256-bit random tokens; only the hash is stored. Tokens travel
-    in POST bodies.
-  - The cancel page sends no Referer.
-  - The logger redacts personal fields, a static test forbids logging them, and
-    the e2e teardown scans real server logs and URLs.
-- **Public form**
-  - Turnstile, a honeypot field, rate limits (5 requests per IP per 10 minutes,
-    3 per email per day, stored as salted hashes), and Zod validation on client
-    and server.
-  - Logins and sign-in links are rate-limited too.
-- **Headers**
-  - Strict CSP limited to Turnstile and OpenStreetMap tiles.
-  - `frame-ancestors 'none'`, nosniff, COOP.
-  - Cross-site API writes are rejected.
+  - Cancel links are 256-bit tokens (only the hash is stored), and the cancel page
+    sends no Referer.
+  - The logger redacts personal fields; a static test and the e2e teardown enforce it.
+- **Public forms:** Turnstile, a honeypot field, per-IP and per-email rate limits
+  (salted hashes), and Zod validation on both client and server.
 - **Third parties**
-  - Nominatim receives addresses, over HTTPS, to look up coordinates.
-  - OpenRouteService and OSRM receive coordinates only.
-  - The solver receives travel-time numbers only.
-- **Retention:** names, emails, phones, addresses and notes are erased from
-  completed or cancelled pickups after `retention_days` (default 90, editable in
-  Settings). City, ZIP and book count are kept for impact numbers.
-- **Audit log:** status changes, publishes, settings edits and team changes are
-  recorded in `audit_log` with user IDs only.
+  - Nominatim sees addresses.
+  - ORS/OSRM see coordinates only.
+  - The solver sees numbers only.
+- **Retention:** personal details are erased `retention_days` (90) after the pickup
+  date. City, ZIP, textbook type and book count are kept for impact numbers.
 
 ## Costs and limits
 
-Everything above runs on free tiers. Limits to keep in mind:
-- Supabase: 500 MB database, and the project pauses after 7 days idle (the daily
-  job prevents this).
-- Render: the free solver sleeps when idle.
-- OpenRouteService: 2,000 matrix and route requests a day. One plan uses about
-  1–10 requests.
-- Gmail: about 500 emails a day.
-- Nominatim: 1 request per second.
+Everything runs on free tiers:
 
-The app is sized for up to roughly 150 stops a day. Beyond that, consider
-self-hosting OSRM or upgrading Render ($7/mo) so the solver doesn't sleep.
+| Service | Free limit |
+|---|---|
+| Supabase | 500 MB |
+| Render | sleeps when idle; the first plan of the day may use the fallback |
+| ORS | 2,000 requests a day |
+| Gmail | about 500 emails a day |
+| Nominatim | 1 request per second |
 
-**Vercel Hobby** is intended for personal, non-commercial use. Check whether
-StemCycle qualifies, or ask Vercel about nonprofit sponsorship. The app also runs
-on any Node host (for example Render or Netlify) with the same environment
-variables.
+**Vercel Hobby** is for non-commercial use. Check that StemCycle qualifies; the app
+also runs on any Node host with the same environment variables.

@@ -3,15 +3,36 @@ import { blockMapTiles, bookPickup, expectNoAxeViolations, signInAs, type Slot }
 
 test.beforeEach(({ page }) => blockMapTiles(page));
 
-const firstSaturday = (slots: Slot[]) =>
-  slots.find((s) => new Date(`${s.slot_date}T12:00:00Z`).getUTCDay() === 6 && s.hour === 10);
+// The third Saturday: no other test books there. 10 and 11 AM have both drivers.
+const thirdSaturday = (hour: number) => (slots: Slot[]) => {
+  const sats = [...new Set(slots.map((s) => s.slot_date))].filter(
+    (d) => new Date(`${d}T12:00:00Z`).getUTCDay() === 6,
+  );
+  return slots.find((s) => s.slot_date === sats[2] && s.hour === hour);
+};
 
 test("bookings are routed automatically and the admin can reassign a stop", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop", "data-changing flow runs once");
-  const slot = await bookPickup(page.request, { name: "Stop Alpha" }, firstSaturday);
-  await bookPickup(page.request, { name: "Stop Beta", address_line: "1 Legacy Dr" }, firstSaturday);
-
+  // Other tests move the depot; put it back in Frisco so drive times are realistic.
   await signInAs(page, "Admin");
+  const settings = await (await page.request.get("/api/admin/settings")).json();
+  const put = await page.request.put("/api/admin/settings", {
+    data: {
+      ...settings,
+      lock_time: settings.lock_time.slice(0, 5),
+      depot_lat: 33.1497,
+      depot_lng: -96.8226,
+    },
+  });
+  expect(put.status()).toBe(200);
+
+  const slot = await bookPickup(page.request, { name: "Stop Alpha" }, thirdSaturday(10));
+  await bookPickup(
+    page.request,
+    { name: "Stop Beta", address_line: "1 Legacy Dr" },
+    thirdSaturday(11),
+  );
+
   // Nobody presses a button: the routing tick plans the weekend once bookings go quiet.
   await expect
     .poll(
@@ -26,7 +47,10 @@ test("bookings are routed automatically and the admin can reassign a stop", asyn
     )
     .toEqual(expect.arrayContaining(["Stop Alpha", "Stop Beta"]));
 
-  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Routes" }).click();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Routes" })
+    .click();
   await page.getByLabel("Weekend").selectOption(slot.slot_date);
   await expect(page.getByText(/Routes are up to date|Changes waiting/)).toBeVisible();
   await expect(page.getByRole("region", { name: "Route map" })).toBeVisible();

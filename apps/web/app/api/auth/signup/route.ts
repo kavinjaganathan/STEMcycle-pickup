@@ -1,7 +1,7 @@
 import { errorResponse, json } from "@/lib/api";
 import { createDriverAccount } from "@/lib/auth";
 import { getDeps, readJson } from "@/lib/deps";
-import { driverConfirmEmail } from "@/lib/email/templates";
+import { driverWelcomeEmail } from "@/lib/email/templates";
 import { log } from "@/lib/logger";
 import { clientIp, rateKey } from "@/lib/security";
 import { driverSignupSchema, fieldErrors } from "@/lib/validation";
@@ -9,7 +9,7 @@ import { driverSignupSchema, fieldErrors } from "@/lib/validation";
 const DONE = {
   ok: true,
   message:
-    "Thanks for signing up! Check your email to confirm your address. An admin will approve your account soon.",
+    "Thanks for signing up! An admin will review your account and email you when it's approved. You can sign in now to check your details.",
 };
 
 export async function POST(request: Request) {
@@ -32,26 +32,23 @@ export async function POST(request: Request) {
       return json({ error: "We couldn't verify you're human. Please try the check again." }, 403);
     }
 
-    const account = await createDriverAccount(input);
-    if (!account) {
+    if (!(await createDriverAccount(input))) {
       // Same answer as a new sign-up: don't reveal which emails have accounts.
       log("info", "signup_existing_email");
       return json(DONE, 201);
     }
     log("info", "driver_signed_up");
-    if (account.confirmUrl) {
+    try {
       const settings = await deps.repo.getPublicSettings();
       await deps.sendEmail(
         {
           to: input.email,
-          ...driverConfirmEmail({
-            orgName: settings.org_name,
-            name: input.full_name,
-            confirmUrl: account.confirmUrl,
-          }),
+          ...driverWelcomeEmail({ orgName: settings.org_name, name: input.full_name }),
         },
         { displayName: settings.email_display_name },
       );
+    } catch (err) {
+      log("warn", "welcome_email_failed", { err });
     }
     return json(DONE, 201);
   } catch (err) {
