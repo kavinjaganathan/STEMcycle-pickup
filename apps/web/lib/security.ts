@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
 
@@ -18,8 +18,19 @@ export function rateKey(kind: string, value: string): string {
   return `${kind}:${createHash("sha256").update(`${env.rateLimitSalt}:${value}`).digest("hex").slice(0, 32)}`;
 }
 
-/** Client IP. On Vercel both headers are set by the platform (not spoofable). */
+/**
+ * Client IP. On Vercel x-forwarded-for is set by the platform (not spoofable).
+ * Behind the ftcoverdrive.org Cloudflare proxy, Vercel only sees Cloudflare's
+ * IP, so the proxy passes the visitor's IP in x-stemcycle-client-ip together
+ * with the shared PROXY_SECRET; the header is ignored without that secret.
+ */
 export function clientIp(headers: Headers): string {
+  const secret = process.env.PROXY_SECRET ?? "";
+  const given = headers.get("x-stemcycle-proxy-secret") ?? "";
+  const viaProxy = headers.get("x-stemcycle-client-ip");
+  if (viaProxy && secret.length >= 16 && given.length === secret.length) {
+    if (timingSafeEqual(Buffer.from(given), Buffer.from(secret))) return viaProxy.trim();
+  }
   const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   return forwarded || headers.get("x-real-ip") || "unknown";
 }

@@ -1,5 +1,9 @@
 # StemCycle Pickup
 
+Live address (once deployed): **https://ftcoverdrive.org/STEM**. It's served by the team
+site's Cloudflare Worker, which forwards `/STEM` to this app on Vercel (see
+"Serving at ftcoverdrive.org/STEM" below).
+
 Residents in Frisco, Plano, McKinney and nearby cities book a free weekend doorstep
 pickup of used textbooks. Volunteer drivers say when they're free, and the app builds
 their routes automatically.
@@ -142,7 +146,9 @@ Keep every secret in the hosting dashboards, never in git.
 
    | Variable | Value |
    |---|---|
-   | `APP_URL` | `https://<your-app>.vercel.app` |
+   | `APP_URL` | `https://ftcoverdrive.org/STEM` |
+   | `NEXT_PUBLIC_BASE_PATH` | `/STEM` |
+   | `PROXY_SECRET` | `openssl rand -hex 32` (same value as the team site's `STEMCYCLE_PROXY_SECRET`) |
    | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | from Supabase |
    | `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH` | the shared admin login |
    | `ADMIN_SESSION_SECRET`, `RATE_LIMIT_SALT`, `CRON_SECRET` | each `openssl rand -hex 32` |
@@ -154,21 +160,35 @@ Keep every secret in the hosting dashboards, never in git.
    | `ORS_API_KEY` | from OpenRouteService |
    | `SOLVER_URL`, `SOLVER_SECRET` | from Render |
 
-7. **Automatic routing:** in Supabase's SQL Editor, open `supabase/cron.sql`, replace
+7. **Serving at ftcoverdrive.org/STEM.** The team site
+   (`kavinjaganathan/OverdriveFTC17294-Website`, a Cloudflare Worker) has a
+   `stemcycle` branch that adds a "StemCycle" tab and a `worker.js` proxy for `/STEM`.
+   1. Merge it: https://github.com/kavinjaganathan/OverdriveFTC17294-Website/pull/new/stemcycle
+   2. In `wrangler.jsonc`, set `STEMCYCLE_ORIGIN` to the Vercel URL (e.g.
+      `https://stemcycle-pickup.vercel.app`). While it's empty, `/STEM` shows "not
+      available yet".
+   3. Add the secret: `npx wrangler secret put STEMCYCLE_PROXY_SECRET` (the same value
+      as `PROXY_SECRET`), then deploy the team site as usual (`npx wrangler deploy`).
+
+   The proxy keeps visitors on ftcoverdrive.org, passes the visitor's IP (trusted
+   only with the shared secret) so rate limits work, and rewrites redirects.
+   Add `ftcoverdrive.org` to the Turnstile site's hostnames, and set Supabase's Site
+   URL to `https://ftcoverdrive.org/STEM`.
+8. **Automatic routing:** in Supabase's SQL Editor, open `supabase/cron.sql`, replace
    the app URL and `CRON_SECRET`, and run it once. Every minute it checks inside the
    database whether any weekend needs work, and only then calls the app. Vercel's
    daily cron (`vercel.json`) also runs data retention, geocoding retries and a
    routing tick as a backup, and keeps the free Supabase project from pausing.
-8. **Deploy from the command line instead (optional):**
+9. **Deploy from the command line instead (optional):**
    ```bash
    npm i -g vercel && cd apps/web
    vercel link              # pick or create the project; root is apps/web
    vercel env pull          # optional: check the variables you set
    vercel --prod            # builds with `next build` and deploys
    ```
-9. **Smoke test:**
-   1. `/api/health` returns `{"status":"ok"}`.
-   2. Sign in at `/admin/login` and set the depot (**Settings → Find coordinates**).
+10. **Smoke test:**
+   1. `https://ftcoverdrive.org/STEM/api/health` returns `{"status":"ok"}`.
+   2. Sign in at `/STEM/admin/login` and set the depot (**Settings → Find coordinates**).
    3. Copy the invite link from **Drivers**, sign up a test driver with it, approve them, and add their hours.
    4. Book a pickup at `/` in one of those hours.
    5. About 2–3 minutes later, the route appears under **Routes** and on the driver's phone.

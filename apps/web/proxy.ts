@@ -15,7 +15,16 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith("/api/") && !SAFE_METHODS.has(request.method)) {
     const origin = request.headers.get("origin");
-    if (origin && new URL(origin).host !== request.headers.get("host")) {
+    // Behind the ftcoverdrive.org proxy the Host is the app's own domain, so the
+    // public site's host (from APP_URL) counts as same-site too.
+    const allowed = new Set(
+      [
+        request.headers.get("host"),
+        request.headers.get("x-forwarded-host"),
+        appHost(),
+      ].filter(Boolean),
+    );
+    if (origin && !allowed.has(safeHost(origin))) {
       return NextResponse.json({ error: "Cross-site request blocked." }, { status: 403 });
     }
   }
@@ -40,6 +49,18 @@ export async function proxy(request: NextRequest) {
   });
   await supabase.auth.getUser();
   return response;
+}
+
+function appHost() {
+  return process.env.APP_URL ? safeHost(process.env.APP_URL) : null;
+}
+
+function safeHost(url: string) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "invalid";
+  }
 }
 
 export const config = {

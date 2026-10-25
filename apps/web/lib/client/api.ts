@@ -1,5 +1,7 @@
 "use client";
 
+import { withBase } from "@/lib/base-path";
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -17,7 +19,7 @@ export async function api<T = unknown>(
 ): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await fetch(withBase(url), {
       method: init.method ?? "GET",
       headers: init.body !== undefined ? { "Content-Type": "application/json" } : undefined,
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
@@ -33,7 +35,7 @@ export async function api<T = unknown>(
   // Session expired: a full navigation clears any personal data held in memory.
   if (res.status === 401 && typeof window !== "undefined")
     window.location.assign(
-      window.location.pathname.startsWith("/admin") ? "/admin/login" : "/login",
+      withBase(window.location.pathname.startsWith(withBase("/admin")) ? "/admin/login" : "/login"),
     );
   if (!res.ok) throw new ApiError(data.error ?? "Something went wrong.", res.status, data.issues);
   return data as T;

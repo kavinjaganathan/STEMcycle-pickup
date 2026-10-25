@@ -21,9 +21,19 @@ export default function ContactPage() {
         <p className="mt-5 max-w-[50ch] text-lg leading-relaxed text-muted">
           Ask about a pickup, our service area, or a large donation. We&apos;ll reply by email.
         </p>
-        <Suspense fallback={null}>
-          <EmailLine />
-        </Suspense>
+        <dl className="mt-6 space-y-2 text-lg">
+          <Suspense fallback={null}>
+            <EmailLine />
+          </Suspense>
+          <div>
+            <dt className="inline">Website: </dt>
+            <dd className="inline">
+              <a href="https://ftcoverdrive.org" className="font-bold underline underline-offset-4">
+                ftcoverdrive.org
+              </a>
+            </dd>
+          </div>
+        </dl>
         <div className="mt-8 border-t border-ink pt-4 text-sm leading-relaxed text-muted">
           <p>
             <strong className="text-ink">Need to cancel a pickup?</strong> Use the cancel link in
@@ -46,11 +56,13 @@ async function EmailLine() {
   const email = contactEmail(await (await getRepo()).getPublicSettings());
   if (!email) return null;
   return (
-    <p className="mt-6 text-lg">
-      Email:{" "}
-      <a href={`mailto:${email}`} className="font-bold break-all underline underline-offset-4">
-        {email}
-      </a>
-    </p>
+    <div>
+      <dt className="inline">Email: </dt>
+      <dd className="inline">
+        <a href={`mailto:${email}`} className="font-bold break-all underline underline-offset-4">
+          {email}
+        </a>
+      </dd>
+    </div>
   );
 }

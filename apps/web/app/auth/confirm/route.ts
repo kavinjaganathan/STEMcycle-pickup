@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/auth";
+import { env } from "@/lib/env";
 
 // Landing for emailed one-time password-reset links:
 // verifies the token, sets the session cookie, then redirects.
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
     const { error } = await (
       await supabaseServer()
     ).auth.verifyOtp({ type, token_hash: tokenHash });
-    if (!error) return NextResponse.redirect(new URL("/driver/account?reset=1", url.origin), 303);
+    if (!error) return NextResponse.redirect(`${env.appUrl}/driver/account?reset=1`, 303);
   }
-  return NextResponse.redirect(new URL("/login?error=link", url.origin), { status: 303 });
+  return NextResponse.redirect(`${env.appUrl}/login?error=link`, { status: 303 });
 }

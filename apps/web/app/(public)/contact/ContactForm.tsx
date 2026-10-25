@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Turnstile } from "@/components/Turnstile";
 import { Button, Field, inputClass, Notice } from "@/components/ui";
 import { contactSchema } from "@/lib/validation";
+import { withBase } from "@/lib/base-path";
 
 type Errors = Record<string, string>;
 const LABELS: Record<string, string> = { name: "Name", email: "Email", message: "Message" };
@@ -43,7 +44,7 @@ export function ContactForm({ turnstileSiteKey }: { turnstileSiteKey: string }) 
     setBusy(true);
     setFormError(null);
     try {
-      const res = await fetch("/api/contact", {
+      const res = await fetch(withBase("/api/contact"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

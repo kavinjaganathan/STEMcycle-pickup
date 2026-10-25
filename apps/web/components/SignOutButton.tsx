@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { withBase } from "@/lib/base-path";
 
 export function SignOutButton({ endpoint, to }: { endpoint: string; to: string }) {
   const [busy, setBusy] = useState(false);
   async function signOut() {
     setBusy(true);
-    await fetch(endpoint, { method: "POST" }).catch(() => {});
+    await fetch(withBase(endpoint), { method: "POST" }).catch(() => {});
     // Full navigation so no personal data stays in client memory after sign-out.
-    window.location.assign(to);
+    window.location.assign(withBase(to));
   }
   return (
     <button

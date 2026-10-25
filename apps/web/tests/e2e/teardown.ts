@@ -29,7 +29,7 @@ const PII = [
 
 export default function teardown() {
   const problems: string[] = [];
-  for (const file of ["server.log", "urls.log"]) {
+  for (const file of ["server.log", "urls.log", "../e2e-stem/server.log"]) {
     const p = path.join(E2E_DATA, file);
     if (!fs.existsSync(p)) {
       problems.push(`${file} is missing`);

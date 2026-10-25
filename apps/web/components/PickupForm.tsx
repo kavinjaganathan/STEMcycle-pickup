@@ -13,6 +13,7 @@ import {
   type PickupFormInput,
 } from "@/lib/validation";
 import { Turnstile } from "./Turnstile";
+import { withBase } from "@/lib/base-path";
 
 type Field = keyof PickupFormInput;
 
@@ -65,7 +66,7 @@ export function PickupForm({
 
   async function refreshSlots() {
     try {
-      const res = await fetch("/api/slots/available", { cache: "no-store" });
+      const res = await fetch(withBase("/api/slots/available"), { cache: "no-store" });
       if (res.ok) setSlots(((await res.json()) as { slots: AvailableSlot[] }).slots);
     } catch {
       // Keep the current list; the server re-checks availability anyway.
@@ -95,7 +96,7 @@ export function PickupForm({
     setSubmitting(true);
     setFormError(null);
     try {
-      const res = await fetch("/api/pickups", {
+      const res = await fetch(withBase("/api/pickups"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -124,7 +125,7 @@ export function PickupForm({
       <p role="status" className="leading-relaxed">
         No pickup times are open right now. Times appear as our volunteer drivers add their weekend
         hours, so please check back soon, or{" "}
-        <a href="/contact" className="font-bold underline underline-offset-4">
+        <a href={withBase("/contact")} className="font-bold underline underline-offset-4">
           contact us
         </a>
         .

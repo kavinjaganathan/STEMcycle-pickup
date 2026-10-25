@@ -33,7 +33,13 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
 ];
 
+// Served under a sub-path in production (ftcoverdrive.org/STEM); "" locally.
+const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/+$/, "");
+
 const nextConfig: NextConfig = {
+  ...(basePath ? { basePath } : {}),
+  // Lets the e2e suite build a second copy (with the base path) side by side.
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,

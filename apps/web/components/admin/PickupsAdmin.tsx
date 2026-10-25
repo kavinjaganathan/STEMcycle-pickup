@@ -19,6 +19,7 @@ import { formatHourRange, formatSlotDate, TEXTBOOK_LABEL } from "@/lib/format";
 import { TEXTBOOK_TYPES, type TextbookType } from "@/lib/shared";
 import { formatPhone } from "@/lib/validation";
 import { LocationFixer } from "./LocationFixer";
+import { withBase } from "@/lib/base-path";
 
 function localToday() {
   const d = new Date();
@@ -112,7 +113,7 @@ export function PickupsAdmin() {
     <>
       <PageHeader eyebrow="Admin" title="Pickups">
         <a
-          href={`/api/admin/pickups/export?${query}`}
+          href={withBase(`/api/admin/pickups/export?${query}`)}
           className="inline-flex min-h-10 items-center rounded-[2px] border border-ink px-4 text-sm font-bold transition-colors hover:bg-ink hover:text-white"
           download
         >

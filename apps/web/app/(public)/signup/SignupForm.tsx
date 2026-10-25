@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Turnstile } from "@/components/Turnstile";
 import { Button, Field, inputClass, Notice } from "@/components/ui";
 import { driverSignupSchema } from "@/lib/validation";
+import { withBase } from "@/lib/base-path";
 
 type Errors = Record<string, string>;
 
@@ -54,7 +55,7 @@ export function SignupForm({
     if (turnstileSiteKey && !token) return fail("Please complete the “I’m human” check.");
     setBusy(true);
     try {
-      const res = await fetch("/api/auth/signup", {
+      const res = await fetch(withBase("/api/auth/signup"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

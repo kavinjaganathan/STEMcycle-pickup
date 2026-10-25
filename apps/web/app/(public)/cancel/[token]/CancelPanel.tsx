@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { formatSlot } from "@/lib/format";
 import type { CancelBody } from "@/lib/pickups/service";
+import { withBase } from "@/lib/base-path";
 
 type View =
   | { kind: "loading" }
@@ -12,7 +13,7 @@ type View =
   | { kind: "error"; message: string };
 
 async function post(token: string, action: "lookup" | "cancel"): Promise<CancelBody> {
-  const res = await fetch("/api/cancel", {
+  const res = await fetch(withBase("/api/cancel"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, action }),
