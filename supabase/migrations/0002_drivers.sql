@@ -65,6 +65,7 @@ $$;
 create function driver_get_availability(p_now timestamptz default now()) returns jsonb
 language sql stable security definer set search_path = public as $$
   select jsonb_build_object(
+    'timezone', s.timezone,
     'first_hour', s.first_hour,
     'last_hour', s.last_hour,
     'days', coalesce((

@@ -59,3 +59,17 @@ export const TEXTBOOK_LABEL: Record<TextbookType, string> = {
   college: "College/University",
   other: "Other",
 };
+
+/** "Fri, Oct 30, 6 PM" for an instant, shown in the org's timezone. */
+export function formatInstant(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  })
+    .format(new Date(iso))
+    .replace(":00", "");
+}
