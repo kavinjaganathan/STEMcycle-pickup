@@ -25,3 +25,11 @@ export function datesBetween(from: string, to: string, weekdays: number[]): stri
 
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+
+/** The Saturday of the weekend to show: today if it's a weekend day, else the next one. */
+export function currentWeekend(today: string): string {
+  const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
+  if (dow === 6) return today;
+  if (dow === 0) return addDays(today, -1);
+  return addDays(today, 6 - dow);
+}
