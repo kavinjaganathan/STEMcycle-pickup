@@ -80,6 +80,18 @@ begin
 end;
 $$;
 
+-- Cheap check used by pg_cron so the app is only called when there's work.
+create function routing_work_due(p_quiet_seconds int default 120) returns boolean
+language sql stable as $$
+  select exists (
+    select 1 from weekends w
+    where w.locked_at is null
+      and w.weekend_date + 1 >= (now() at time zone org_tz())::date
+      and (w.run_started_at is null or w.run_started_at < now() - interval '10 minutes')
+      and (weekend_lock_at(w.weekend_date) <= now()
+           or w.dirty_at <= now() - make_interval(secs => p_quiet_seconds)));
+$$;
+
 -- Claim one weekend for an admin-triggered run. Null if a run is in progress.
 create function claim_weekend(p_weekend date, p_now timestamptz default now()) returns jsonb
 language plpgsql as $$

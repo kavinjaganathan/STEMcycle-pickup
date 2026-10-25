@@ -5,6 +5,8 @@ export type Job = {
   demand: number;
   service: number;
   tw: [number, number];
+  /** Vehicles allowed to serve this job (undefined = any). */
+  vehicles?: string[];
 };
 
 export type Vehicle = {
@@ -14,6 +16,8 @@ export type Vehicle = {
   capacity: number;
   shift_start: number;
   max_duration: number;
+  /** Latest time back at the end depot. */
+  shift_end?: number;
 };
 
 export type Problem = {

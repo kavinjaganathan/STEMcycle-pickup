@@ -60,6 +60,7 @@ begin
   where id = p_id and anonymized_at is null
   returning slot_date into v_date;
   if not found then perform app_error('not_found'); end if;
+  perform mark_weekend_dirty(v_date);
   perform write_audit(case when p_driver_id is null then 'unpin' else 'pin' end, 'pickup', p_id);
   return jsonb_build_object('ok', true, 'slot_date', v_date);
 end;

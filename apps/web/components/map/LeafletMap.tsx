@@ -54,7 +54,7 @@ function drawLayers(
     Lf.polyline(line.points, { color: line.color, weight: 4, opacity: 0.8 }).addTo(group);
   }
   for (const mk of data.markers) {
-    const color = mk.color ?? "#1f6f4a";
+    const color = mk.color ?? "#8f3ba5";
     const square = mk.shape === "square";
     const icon = Lf.divIcon({
       className: "",

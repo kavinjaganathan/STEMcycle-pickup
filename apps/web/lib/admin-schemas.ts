@@ -60,3 +60,9 @@ export const settingsSchema = z
     message: "The last hour must be after the first hour.",
     path: ["last_hour"],
   });
+
+/** A weekend is identified by its Saturday. */
+export const weekendParam = z
+  .string()
+  .regex(DATE_RE)
+  .refine((d) => new Date(`${d}T12:00:00Z`).getUTCDay() === 6, "Must be a Saturday.");

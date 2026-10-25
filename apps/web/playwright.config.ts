@@ -34,6 +34,9 @@ export default defineConfig({
       ROUTING_PROVIDER: "fake",
       SOLVER_URL: "",
       CRON_SECRET: "e2e-cron-secret-0123456789",
+      // Automatic routing: tick every 2 s and treat 2 quiet seconds as "settled".
+      LOCAL_ROUTING_TICK_SECONDS: "2",
+      ROUTING_QUIET_SECONDS: "2",
     },
   },
 });

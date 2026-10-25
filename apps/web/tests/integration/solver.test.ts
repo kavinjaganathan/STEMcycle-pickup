@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { solveFallback } from "@/lib/routing/fallback";
+import { isValidSolution } from "@/lib/routing/plan";
 import { solveRemote } from "@/lib/routing/solver-client";
 import type { Problem } from "@/lib/routing/types";
 
@@ -43,4 +44,70 @@ describe.skipIf(!process.env.SOLVER_URL)("OR-Tools service", () => {
     if (remote!.unassigned.length === fb.unassigned.length)
       expect(total(remote!)).toBeLessThanOrEqual(total(fb) * 1.02);
   }, 60_000);
+
+  it("keeps each job on a vehicle allowed to serve it and back by the shift end", async () => {
+    const H = 3600;
+    const pts = [
+      [0, 0],
+      [5, 0],
+      [0, 5],
+      [5, 5],
+      [3, 3],
+    ];
+    const p: Problem = {
+      durations: pts.map((a) =>
+        pts.map((b) => Math.round((Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])) * 60)),
+      ),
+      jobs: [
+        { id: "a", node: 1, demand: 1, service: 300, tw: [9 * H, 10 * H], vehicles: ["dana@9"] },
+        { id: "b", node: 2, demand: 1, service: 300, tw: [13 * H, 14 * H], vehicles: ["sam@13"] },
+        {
+          id: "c",
+          node: 3,
+          demand: 1,
+          service: 300,
+          tw: [9 * H, 10 * H],
+          vehicles: ["dana@9", "sam@9"],
+        },
+        { id: "d", node: 4, demand: 1, service: 300, tw: [9 * H, 10 * H], vehicles: [] },
+      ],
+      vehicles: [
+        {
+          id: "dana@9",
+          start_node: 0,
+          end_node: 0,
+          capacity: 5,
+          shift_start: 9 * H,
+          shift_end: 11 * H,
+          max_duration: 4 * H,
+        },
+        {
+          id: "sam@9",
+          start_node: 0,
+          end_node: 0,
+          capacity: 5,
+          shift_start: 9 * H,
+          shift_end: 11 * H,
+          max_duration: 4 * H,
+        },
+        {
+          id: "sam@13",
+          start_node: 0,
+          end_node: 0,
+          capacity: 5,
+          shift_start: 13 * H,
+          shift_end: 15 * H,
+          max_duration: 4 * H,
+        },
+      ],
+      time_limit_seconds: 2,
+    };
+    const s = await solveRemote(p);
+    expect(s).not.toBeNull();
+    expect(isValidSolution(p, s!)).toBe(true);
+    expect(s!.unassigned).toEqual(["d"]);
+    for (const r of s!.routes) {
+      expect(r.end).toBeLessThanOrEqual(p.vehicles.find((v) => v.id === r.vehicle_id)!.shift_end!);
+    }
+  });
 });

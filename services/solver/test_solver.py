@@ -24,6 +24,8 @@ def check_routes(p: Problem, s) -> None:
         assert sum(jobs[st.job_id].demand for st in r.stops) == r.load
         assert r.end - r.start <= v.max_duration
         assert r.start >= v.shift_start
+        if v.shift_end is not None:
+            assert r.end <= v.shift_end, f"{v.id} back after its shift"
         prev_node, prev_dep = v.start_node, r.start
         for st in r.stops:
             job = jobs[st.job_id]
@@ -31,6 +33,8 @@ def check_routes(p: Problem, s) -> None:
             assert st.arrival >= prev_dep + p.durations[prev_node][job.node]
             prev_node, prev_dep = job.node, st.departure
             seen.add(st.job_id)
+            if job.vehicles is not None:
+                assert r.vehicle_id in job.vehicles, f"{job.id} on a vehicle it isn't allowed on"
         assert r.end >= prev_dep + p.durations[prev_node][v.end_node]
     assert seen.isdisjoint(s.unassigned)
     assert seen | set(s.unassigned) == set(jobs)
@@ -165,3 +169,58 @@ def test_http_requires_secret(monkeypatch):
     assert res.status_code == 200
     assert res.json()["routes"][0]["stops"][0]["job_id"] == "a"
     assert client.get("/health").json() == {"status": "ok"}
+
+
+def test_jobs_only_go_to_allowed_vehicles():
+    """Two drivers with different hours: each stop must go to a driver free at that time."""
+    pts = [(0, 0), (5, 0), (0, 5), (5, 5)]
+    p = Problem(
+        durations=grid_matrix(pts),
+        jobs=[
+            Job(id="morning", node=1, demand=1, service=300, tw=(9 * H, 10 * H), vehicles=["am"]),
+            Job(id="afternoon", node=2, demand=1, service=300, tw=(14 * H, 15 * H), vehicles=["pm"]),
+            Job(id="pinned", node=3, demand=1, service=300, tw=(9 * H, 10 * H), vehicles=["am"]),
+        ],
+        vehicles=[
+            Vehicle(id="am", start_node=0, end_node=0, capacity=10, shift_start=9 * H, shift_end=10 * H + 1800, max_duration=4 * H),
+            Vehicle(id="pm", start_node=0, end_node=0, capacity=10, shift_start=14 * H, shift_end=15 * H + 1800, max_duration=4 * H),
+        ],
+        time_limit_seconds=2,
+    )
+    s = solve(p)
+    check_routes(p, s)
+    assert s.unassigned == []
+    by_vehicle = {r.vehicle_id: {st.job_id for st in r.stops} for r in s.routes}
+    assert by_vehicle == {"am": {"morning", "pinned"}, "pm": {"afternoon"}}
+
+
+def test_job_with_no_allowed_vehicle_is_unassigned():
+    pts = [(0, 0), (5, 0)]
+    p = Problem(
+        durations=grid_matrix(pts),
+        jobs=[Job(id="orphan", node=1, demand=1, service=60, tw=(9 * H, 10 * H), vehicles=[])],
+        vehicles=[Vehicle(id="v", start_node=0, end_node=0, capacity=5, shift_start=9 * H, max_duration=2 * H)],
+        time_limit_seconds=1,
+    )
+    assert solve(p).unassigned == ["orphan"]
+
+
+def test_shift_end_limits_the_return():
+    # The stop is 60 min away; the driver must be back by 10:30, so 9:00 + 2h > limit.
+    pts = [(0, 0), (60, 0)]
+    p = Problem(
+        durations=grid_matrix(pts),
+        jobs=[Job(id="far", node=1, demand=1, service=60, tw=(9 * H, 10 * H))],
+        vehicles=[Vehicle(id="v", start_node=0, end_node=0, capacity=5, shift_start=9 * H, shift_end=10 * H + 1800, max_duration=4 * H)],
+        time_limit_seconds=1,
+    )
+    assert solve(p).unassigned == ["far"]
+
+
+def test_rejects_unknown_vehicle_names():
+    with pytest.raises(ValueError):
+        Problem(
+            durations=[[0, 1], [1, 0]],
+            jobs=[Job(id="a", node=1, demand=1, service=0, tw=(0, 10), vehicles=["ghost"])],
+            vehicles=[Vehicle(id="v", start_node=0, end_node=0, capacity=1, shift_start=0, max_duration=100)],
+        )

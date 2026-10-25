@@ -18,6 +18,7 @@ function check(p: Problem, s: Solution) {
     const v = p.vehicles.find((x) => x.id === r.vehicle_id)!;
     expect(r.load).toBeLessThanOrEqual(v.capacity);
     expect(r.end - r.start).toBeLessThanOrEqual(v.max_duration);
+    if (v.shift_end !== undefined) expect(r.end).toBeLessThanOrEqual(v.shift_end);
     let node = v.start_node;
     let dep = r.start;
     for (const st of r.stops) {
@@ -28,6 +29,7 @@ function check(p: Problem, s: Solution) {
       node = j.node;
       dep = st.departure;
       expect(seen.has(st.job_id)).toBe(false);
+      if (j.vehicles) expect(j.vehicles).toContain(r.vehicle_id);
       seen.add(st.job_id);
     }
   }
@@ -150,5 +152,57 @@ describe("solveFallback", () => {
     const sim = simulate(p, p.vehicles[0], p.jobs);
     expect(sim?.start).toBe(10 * H - 600);
     expect(sim?.duration).toBe(600 + 60 + 600);
+  });
+
+  it("only gives a job to vehicles allowed to serve it, and respects shift ends", () => {
+    const p: Problem = {
+      durations: grid([
+        [0, 0],
+        [5, 0],
+        [0, 5],
+        [60, 0],
+      ]),
+      jobs: [
+        { id: "morning", node: 1, demand: 1, service: 300, tw: [9 * H, 10 * H], vehicles: ["am"] },
+        {
+          id: "afternoon",
+          node: 2,
+          demand: 1,
+          service: 300,
+          tw: [14 * H, 15 * H],
+          vehicles: ["pm"],
+        },
+        { id: "nobody", node: 3, demand: 1, service: 60, tw: [9 * H, 10 * H], vehicles: [] },
+      ],
+      vehicles: [
+        {
+          id: "am",
+          start_node: 0,
+          end_node: 0,
+          capacity: 10,
+          shift_start: 9 * H,
+          shift_end: 10.5 * H,
+          max_duration: 4 * H,
+        },
+        {
+          id: "pm",
+          start_node: 0,
+          end_node: 0,
+          capacity: 10,
+          shift_start: 14 * H,
+          shift_end: 15.5 * H,
+          max_duration: 4 * H,
+        },
+      ],
+    };
+    const s = solveFallback(p);
+    check(p, s);
+    expect(s.unassigned).toEqual(["nobody"]);
+    expect(
+      Object.fromEntries(s.routes.map((r) => [r.vehicle_id, r.stops.map((x) => x.job_id)])),
+    ).toEqual({
+      am: ["morning"],
+      pm: ["afternoon"],
+    });
   });
 });

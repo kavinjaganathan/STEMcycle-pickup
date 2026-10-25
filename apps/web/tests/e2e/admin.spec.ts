@@ -8,13 +8,17 @@ test("admin filters pickups and exports CSV", async ({ page }) => {
   await bookPickup(page.request, { name: "Grace Hopper", textbook_type: "college" });
   await signInAs(page, "Admin");
   await expect(page.getByRole("heading", { name: "Pickups" })).toBeVisible();
-  await expect(page.getByRole("article", { name: "Pickup for Grace Hopper" }).first()).toBeVisible();
+  await expect(
+    page.getByRole("article", { name: "Pickup for Grace Hopper" }).first(),
+  ).toBeVisible();
   await expectNoAxeViolations(page);
 
   await page.getByLabel("Textbooks").selectOption("elementary");
   await expect(page.getByRole("article", { name: "Pickup for Grace Hopper" })).toHaveCount(0);
   await page.getByLabel("Textbooks").selectOption("college");
-  await expect(page.getByRole("article", { name: "Pickup for Grace Hopper" }).first()).toBeVisible();
+  await expect(
+    page.getByRole("article", { name: "Pickup for Grace Hopper" }).first(),
+  ).toBeVisible();
 
   const download = page.waitForEvent("download");
   await page.getByRole("link", { name: "Export CSV" }).click();
@@ -27,14 +31,19 @@ test("admin filters pickups and exports CSV", async ({ page }) => {
 test("admin approves a pending driver, who gets an email", async ({ page }, info) => {
   test.skip(info.project.name !== "mobile", "approval changes shared state; run once");
   await signInAs(page, "Admin");
-  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Drivers" }).click();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Drivers" })
+    .click();
   const pat = page.getByRole("article", { name: "Pat Pending" });
   await expect(pat).toBeVisible();
   await expectNoAxeViolations(page);
   await pat.getByRole("button", { name: "Approve" }).click();
   await expect(page.getByText(/Pat Pending is approved and we emailed them/)).toBeVisible();
   await expect(
-    page.getByRole("region", { name: /Active drivers/ }).getByRole("article", { name: "Pat Pending" }),
+    page
+      .getByRole("region", { name: /Active drivers/ })
+      .getByRole("article", { name: "Pat Pending" }),
   ).toBeVisible();
 
   const outbox = path.join(E2E_DATA, "outbox");
@@ -47,7 +56,10 @@ test("admin approves a pending driver, who gets an email", async ({ page }, info
 
 test("admin updates the depot in settings", async ({ page }, info) => {
   await signInAs(page, "Admin");
-  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Settings" }).click();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Settings" })
+    .click();
   await expect(page.getByLabel("Depot name")).not.toHaveValue("");
   await expectNoAxeViolations(page);
   const name = `Frisco garage (${info.project.name})`;

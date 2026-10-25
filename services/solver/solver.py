@@ -21,6 +21,9 @@ class Job(BaseModel):
     demand: int = Field(ge=0)
     service: int = Field(ge=0)
     tw: tuple[int, int]
+    # Vehicles allowed to serve this job (None = any). Used for driver
+    # availability (only drivers free at that hour) and admin assignments.
+    vehicles: list[str] | None = None
 
 
 class Vehicle(BaseModel):
@@ -30,6 +33,8 @@ class Vehicle(BaseModel):
     capacity: int = Field(gt=0)
     shift_start: int = Field(ge=0)
     max_duration: int = Field(gt=0)
+    # Latest time the vehicle may be back at its end depot (None = no limit).
+    shift_end: int | None = Field(default=None, ge=0)
 
 
 class Problem(BaseModel):
@@ -48,8 +53,16 @@ class Problem(BaseModel):
                 raise ValueError(f"job {j.id} node out of range")
             if j.tw[0] > j.tw[1]:
                 raise ValueError(f"job {j.id} has an empty time window")
+        vehicle_ids = {v.id for v in self.vehicles}
+        if len(vehicle_ids) != len(self.vehicles):
+            raise ValueError("vehicle ids must be unique")
+        for j in self.jobs:
+            if j.vehicles is not None and not set(j.vehicles) <= vehicle_ids:
+                raise ValueError(f"job {j.id} names an unknown vehicle")
         depot_nodes = set()
         for v in self.vehicles:
+            if v.shift_end is not None and v.shift_end < v.shift_start:
+                raise ValueError(f"vehicle {v.id} ends before it starts")
             if v.start_node >= n or v.end_node >= n:
                 raise ValueError(f"vehicle {v.id} node out of range")
             depot_nodes |= {v.start_node, v.end_node}
@@ -110,19 +123,29 @@ def solve(p: Problem) -> Solution:
     routing.SetArcCostEvaluatorOfAllVehicles(travel_cb)
 
     horizon = max(
-        [j.tw[1] + j.service for j in p.jobs] + [v.shift_start + v.max_duration for v in p.vehicles]
+        [j.tw[1] + j.service for j in p.jobs]
+        + [v.shift_start + v.max_duration for v in p.vehicles]
+        + [v.shift_end or 0 for v in p.vehicles]
     ) + 3600
     routing.AddDimension(transit_cb, MAX_WAIT, horizon, False, "Time")
     time = routing.GetDimensionOrDie("Time")
 
+    vehicle_index = {v.id: i for i, v in enumerate(p.vehicles)}
     for k, job in enumerate(p.jobs):
         idx = manager.NodeToIndex(k)
         time.CumulVar(idx).SetRange(job.tw[0], job.tw[1])
         routing.AddDisjunction([idx], DROP_PENALTY)
+        if job.vehicles is not None:
+            # -1 = "not performed", so a job with no allowed vehicle is simply dropped.
+            routing.VehicleVar(idx).SetValues([-1] + [vehicle_index[v] for v in job.vehicles])
 
     for v_i, v in enumerate(p.vehicles):
         start = routing.Start(v_i)
-        time.CumulVar(start).SetRange(v.shift_start, v.shift_start + MAX_WAIT)
+        latest_start = v.shift_start + MAX_WAIT
+        if v.shift_end is not None:
+            latest_start = min(latest_start, v.shift_end)
+            time.CumulVar(routing.End(v_i)).SetMax(v.shift_end)
+        time.CumulVar(start).SetRange(v.shift_start, latest_start)
         time.SetSpanUpperBoundForVehicle(v.max_duration, v_i)
         routing.AddVariableMinimizedByFinalizer(time.CumulVar(start))
         routing.AddVariableMinimizedByFinalizer(time.CumulVar(routing.End(v_i)))

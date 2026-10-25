@@ -86,6 +86,7 @@ export function simulate(p: Problem, v: Vehicle, order: Job[]): Sim | null {
   let load = 0;
   const stops: Sim["stops"] = [];
   for (const job of order) {
+    if (job.vehicles && !job.vehicles.includes(v.id)) return null;
     const arrival = Math.max(t + d[node][job.node], job.tw[0]);
     if (arrival > job.tw[1]) return null;
     load += job.demand;
@@ -100,6 +101,7 @@ export function simulate(p: Problem, v: Vehicle, order: Job[]): Sim | null {
     ? Math.max(v.shift_start, stops[0].arrival - d[v.start_node][order[0].node])
     : v.shift_start;
   if (end - start > v.max_duration) return null;
+  if (v.shift_end !== undefined && end > v.shift_end) return null;
   return { start, end, duration: end - start, lastDeparture: t, stops };
 }
 
