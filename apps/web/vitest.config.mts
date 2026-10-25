@@ -11,6 +11,10 @@ export default defineConfig({
   test: {
     include: ["tests/unit/**/*.test.ts", "tests/db/**/*.test.ts", "tests/integration/**/*.test.ts"],
     environment: "node",
-    testTimeout: 20000,
+    testTimeout: 60000,
+    // Each DB test file boots its own embedded Postgres; under full parallel load
+    // that can take more than the default 10 s.
+    hookTimeout: 30000,
+    maxWorkers: 2,
   },
 });

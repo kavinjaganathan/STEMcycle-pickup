@@ -48,3 +48,8 @@ next-env.d.ts
 
 # second e2e build served under /STEM
 /.next-stem/
+
+# Cloudflare (OpenNext) build output
+/.open-next/
+/.wrangler/
+.dev.vars

@@ -19,12 +19,18 @@ export function rateKey(kind: string, value: string): string {
 }
 
 /**
- * Client IP. On Vercel x-forwarded-for is set by the platform (not spoofable).
+ * Client IP. On other Node hosts (e.g. Vercel) x-forwarded-for is set by the platform (not spoofable).
  * Behind the ftcoverdrive.org Cloudflare proxy, Vercel only sees Cloudflare's
  * IP, so the proxy passes the visitor's IP in x-stemcycle-client-ip together
  * with the shared PROXY_SECRET; the header is ignored without that secret.
  */
 export function clientIp(headers: Headers): string {
+  // On Cloudflare Workers, CF-Connecting-IP is set by Cloudflare's edge and
+  // can't be forged by the visitor (also true via the ftcoverdrive.org binding).
+  const onWorkers =
+    typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+  const cf = headers.get("cf-connecting-ip");
+  if (onWorkers && cf) return cf.trim();
   const secret = process.env.PROXY_SECRET ?? "";
   const given = headers.get("x-stemcycle-proxy-secret") ?? "";
   const viaProxy = headers.get("x-stemcycle-client-ip");

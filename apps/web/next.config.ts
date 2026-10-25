@@ -33,6 +33,10 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
 ];
 
+// `npm run cf:build` sets this: the Cloudflare Worker build leaves out the
+// local-only database and nodemailer (Workers use lib/email/smtp-lite.ts).
+const cloudflare = process.env.DEPLOY_TARGET === "cloudflare";
+
 // Served under a sub-path in production (ftcoverdrive.org/STEM); "" locally.
 const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/+$/, "");
 
@@ -40,12 +44,24 @@ const nextConfig: NextConfig = {
   ...(basePath ? { basePath } : {}),
   // Lets the e2e suite build a second copy (with the base path) side by side.
   ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Cache Components is off: it hangs on the Cloudflare Workers runtime. Pages
+  // still opt into per-request rendering with connection() inside <Suspense>.
   poweredByHeader: false,
   // PGlite (local dev/test database) ships WASM; load it from node_modules.
-  serverExternalPackages: ["@electric-sql/pglite"],
+  serverExternalPackages: cloudflare ? [] : ["@electric-sql/pglite"],
+  // Never trace local data (test databases, email outbox) into a deployment.
+  outputFileTracingExcludes: {
+    "*": [".data/**", ".next-stem/**", ".open-next/**", ".wrangler/**"],
+  },
   turbopack: {
+    ...(cloudflare
+      ? {
+          resolveAlias: {
+            "@electric-sql/pglite": "./lib/stubs/pglite.ts",
+            nodemailer: "./lib/stubs/nodemailer.ts",
+          },
+        }
+      : {}),
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],
@@ -54,7 +70,19 @@ const nextConfig: NextConfig = {
     },
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Under ftcoverdrive.org/STEM our robots.txt isn't the one crawlers read, so
+      // private areas also say "noindex" on every response.
+      {
+        source: "/:area(admin|driver|login|signup|drive|cancel|api|auth)/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
+        source: "/:area(admin|driver|login|signup|drive)",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+    ];
   },
 };
 

@@ -2,6 +2,7 @@ import "server-only";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "@/lib/env";
+import type { SmtpSocket } from "./smtp-lite";
 
 export type EmailMessage = {
   to: string;
@@ -30,9 +31,42 @@ export const sendEmail: SendEmail = async (msg, { displayName }) => {
   return sendViaSmtp(msg, from);
 };
 
+/** The part of cloudflare:sockets' connect() used here. */
+type WorkersConnect = (
+  address: { hostname: string; port: number },
+  options: { secureTransport: "on" | "starttls"; allowHalfOpen: boolean },
+) => SmtpSocket;
+
+/** True when running as a Cloudflare Worker (where nodemailer can't open sockets). */
+const onWorkers = () =>
+  typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+
 async function sendViaSmtp(msg: EmailMessage, from: string) {
-  const nodemailer = await import("nodemailer");
   const port = Number(process.env.SMTP_PORT ?? 465);
+  if (onWorkers()) {
+    const { sendSmtp } = await import("./smtp-lite");
+    // Resolved by the Workers runtime; .catch() keeps bundlers from requiring it at build time.
+    const sockets = (await import(
+      /* webpackIgnore: true */ /* turbopackIgnore: true */ "cloudflare:sockets" as string
+    ).catch(() => null)) as { connect: WorkersConnect } | null;
+    if (!sockets) throw new Error("cloudflare:sockets is unavailable");
+    const { connect } = sockets;
+    return sendSmtp(
+      (c) =>
+        connect(
+          { hostname: c.host, port: c.port },
+          { secureTransport: c.port === 465 ? "on" : "starttls", allowHalfOpen: false },
+        ),
+      {
+        host: process.env.SMTP_HOST ?? "smtp.gmail.com",
+        port,
+        user: process.env.SMTP_USER ?? env.emailFrom(),
+        pass: process.env.SMTP_PASS ?? "",
+      },
+      { ...msg, from },
+    );
+  }
+  const nodemailer = await import("nodemailer");
   const transport = nodemailer.createTransport({
     host: process.env.SMTP_HOST ?? "smtp.gmail.com",
     port,

@@ -1,8 +1,9 @@
 # StemCycle Pickup
 
-Live address (once deployed): **https://ftcoverdrive.org/STEM**. It's served by the team
-site's Cloudflare Worker, which forwards `/STEM` to this app on Vercel (see
-"Serving at ftcoverdrive.org/STEM" below).
+Address: **https://ftcoverdrive.org/STEM**. Everything runs on Cloudflare: this app is
+the Worker `stemcycle-pickup`, and the team site's Worker
+(`kavinjaganathan/OverdriveFTC17294-Website`) hands it every `/STEM` request through a
+service binding. The app has no other public address.
 
 Residents in Frisco, Plano, McKinney and nearby cities book a free weekend doorstep
 pickup of used textbooks. Volunteer drivers say when they're free, and the app builds
@@ -38,13 +39,15 @@ email really went out; otherwise it shows the address to write to.
 ## How it works
 
 ```
-Browser ─► Next.js on Vercel (apps/web) ─► Supabase Postgres + Auth (RLS; rules in SQL functions)
+Browser ─► ftcoverdrive.org (team-site Worker) ─/STEM─► stemcycle-pickup Worker (Next.js via OpenNext)
+               ─► Supabase Postgres + Auth (RLS; rules in SQL functions)
                ├─► Nominatim             geocoding (free, 1 req/s, cached by address hash)
                ├─► OpenRouteService/OSRM road travel times + route lines
                ├─► OR-Tools on Render    services/solver (gets numbers only, never addresses)
-               ├─► Gmail SMTP or Resend  emails
+               ├─► Gmail SMTP            emails (Workers TCP sockets; lib/email/smtp-lite.ts)
                └─► Cloudflare Turnstile  spam check on public forms
-pg_cron (in Supabase) ─► /api/internal/routing/tick, only when a weekend needs work
+pg_cron (in Supabase) ─► /STEM/api/internal/routing/tick (only when a weekend needs work)
+                      ─► /STEM/api/cron/daily (retention, geocode retries)
 ```
 
 **Routing.** A weekend is planned per day. Each run of a driver's consecutive hours
@@ -120,86 +123,61 @@ cd ../../services/solver && .venv/bin/python -m pytest -q
 The e2e teardown fails the run if any test resident's name, email, phone or street
 appears in a server log line or a browser request URL. CI runs everything on each push.
 
-## Deploying (free tiers)
+## Deploying to Cloudflare
 
-Keep every secret in the hosting dashboards, never in git.
+Keep every secret in Cloudflare/Supabase, never in git.
 
-1. **GitHub.** Push this folder to a private repository.
-2. **Supabase** (https://supabase.com, region *US East/Central*):
-   1. In **SQL Editor**, run `supabase/migrations/0001…0006` in order. Optionally run `seed.sql`.
-   2. Under **Authentication → Sign In / Providers → Email**, turn **off** "Allow new
-      users to sign up". The app creates driver accounts itself.
-   3. Under **Authentication → URL Configuration**, set Site URL to `https://<your-app>.vercel.app`.
-   4. Under **Integrations**, enable **pg_cron** and **pg_net** (the next step can also create them).
-   5. From **Project Settings → API**, copy the URL, the `anon` key and the `service_role` key.
-3. **Render** (https://render.com): **New → Blueprint**, then pick the repo. This creates
-   `stemcycle-solver` from `render.yaml`. Copy its URL and the generated `SOLVER_SECRET`.
-4. **Free keys:**
-   - OpenRouteService key: https://openrouteservice.org/dev/#/signup
-   - Cloudflare Turnstile site and secret keys: dash.cloudflare.com → Turnstile
-   - A Gmail App Password: needs 2-Step Verification; create it at
-     https://myaccount.google.com/apppasswords
-5. **Admin password hash:** `node apps/web/scripts/hash-admin-password.mjs`. It prompts
-   for the password and prints `ADMIN_PASSWORD_HASH=…`.
-6. **Vercel** (https://vercel.com): **Add New → Project**, set **Root Directory** to
-   `apps/web`, then add these environment variables:
-
-   | Variable | Value |
-   |---|---|
-   | `APP_URL` | `https://ftcoverdrive.org/STEM` |
-   | `NEXT_PUBLIC_BASE_PATH` | `/STEM` |
-   | `PROXY_SECRET` | `openssl rand -hex 32` (same value as the team site's `STEMCYCLE_PROXY_SECRET`) |
-   | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | from Supabase |
-   | `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH` | the shared admin login |
-   | `ADMIN_SESSION_SECRET`, `RATE_LIMIT_SALT`, `CRON_SECRET` | each `openssl rand -hex 32` |
-   | `DRIVER_INVITE_CODE` | `openssl rand -hex 12` (makes sign-up invite-only) |
-   | `CONTACT_EMAIL` (optional) | inbox for Contact Us; defaults to `EMAIL_FROM` |
-   | `EMAIL_PROVIDER` = `smtp`, `EMAIL_FROM`, `SMTP_USER` | the sending Gmail address |
-   | `SMTP_PASS` (`SMTP_HOST`/`SMTP_PORT` default to Gmail 465) | the App Password |
-   | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | from Cloudflare |
-   | `ORS_API_KEY` | from OpenRouteService |
-   | `SOLVER_URL`, `SOLVER_SECRET` | from Render |
-
-7. **Serving at ftcoverdrive.org/STEM.** The team site
-   (`kavinjaganathan/OverdriveFTC17294-Website`, a Cloudflare Worker) has a
-   `stemcycle` branch that adds a "StemCycle" tab and a `worker.js` proxy for `/STEM`.
-   1. Merge it: https://github.com/kavinjaganathan/OverdriveFTC17294-Website/pull/new/stemcycle
-   2. In `wrangler.jsonc`, set `STEMCYCLE_ORIGIN` to the Vercel URL (e.g.
-      `https://stemcycle-pickup.vercel.app`). While it's empty, `/STEM` shows "not
-      available yet".
-   3. Add the secret: `npx wrangler secret put STEMCYCLE_PROXY_SECRET` (the same value
-      as `PROXY_SECRET`), then deploy the team site as usual (`npx wrangler deploy`).
-
-   The proxy keeps visitors on ftcoverdrive.org, passes the visitor's IP (trusted
-   only with the shared secret) so rate limits work, and rewrites redirects.
-   Add `ftcoverdrive.org` to the Turnstile site's hostnames, and set Supabase's Site
-   URL to `https://ftcoverdrive.org/STEM`.
-8. **Automatic routing:** in Supabase's SQL Editor, open `supabase/cron.sql`, replace
-   the app URL and `CRON_SECRET`, and run it once. Every minute it checks inside the
-   database whether any weekend needs work, and only then calls the app. Vercel's
-   daily cron (`vercel.json`) also runs data retention, geocoding retries and a
-   routing tick as a backup, and keeps the free Supabase project from pausing.
-9. **Deploy from the command line instead (optional):**
-   ```bash
-   npm i -g vercel && cd apps/web
-   vercel link              # pick or create the project; root is apps/web
-   vercel env pull          # optional: check the variables you set
-   vercel --prod            # builds with `next build` and deploys
-   ```
-10. **Smoke test:**
+1. **Supabase** (the database and driver logins; free):
+   1. Create a project (region *US East/Central*). In **SQL Editor**, run
+      `supabase/migrations/0001…0006` in order, then optionally `seed.sql`.
+   2. **Authentication → Sign In / Providers → Email**: turn **off** "Allow new users to
+      sign up" (the app creates driver accounts itself).
+   3. **Authentication → URL Configuration**: Site URL `https://ftcoverdrive.org/STEM`.
+   4. **Project Settings → API**: copy the URL, the `anon` key and the `service_role` key.
+2. **Keys you create once:**
+   - **Gmail App Password** for `ftcoverdrive17294@gmail.com`: turn on 2-Step
+     Verification, then go to https://myaccount.google.com/apppasswords.
+   - **Turnstile** (Cloudflare dashboard → Turnstile → Add site, hostname
+     `ftcoverdrive.org`): site key + secret key.
+   - Admin password hash: `node apps/web/scripts/hash-admin-password.mjs`.
+   - Optional: OpenRouteService key; OR-Tools solver on Render (`render.yaml`). Without
+     them the app uses OSRM and its built-in planner.
+3. **Deploy the app Worker** (from `apps/web`, after `npx wrangler login`):
+   1. Put the public settings in `wrangler.jsonc` → `vars`: `SUPABASE_URL`,
+      `ADMIN_EMAIL` (the rest are already filled in: `APP_URL`, base path, Gmail sender).
+   2. Add each secret with `npx wrangler secret put NAME`:
+      `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PASSWORD_HASH`,
+      `ADMIN_SESSION_SECRET`, `RATE_LIMIT_SALT`, `CRON_SECRET` (each
+      `openssl rand -hex 32`), `DRIVER_INVITE_CODE` (`openssl rand -hex 12`),
+      `SMTP_PASS` (the App Password), `TURNSTILE_SECRET_KEY`, and optionally
+      `ORS_API_KEY`, `SOLVER_SECRET`.
+   3. Build and deploy. The Turnstile *site* key is public and gets built in:
+      ```bash
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY=<site key> npm run cf:deploy
+      ```
+4. **Connect it to ftcoverdrive.org:** in the team site's `wrangler.jsonc`, uncomment
+   `"services": [{ "binding": "STEMCYCLE", "service": "stemcycle-pickup" }]` and deploy
+   the team site (`npx wrangler deploy`). Until then `/STEM` shows "not available yet".
+5. **Automatic routing and the daily job:** open `supabase/cron.sql` in Supabase's SQL
+   Editor, put in your `CRON_SECRET`, and run it once.
+6. **Smoke test:**
    1. `https://ftcoverdrive.org/STEM/api/health` returns `{"status":"ok"}`.
    2. Sign in at `/STEM/admin/login` and set the depot (**Settings → Find coordinates**).
-   3. Copy the invite link from **Drivers**, sign up a test driver with it, approve them, and add their hours.
-   4. Book a pickup at `/` in one of those hours.
-   5. About 2–3 minutes later, the route appears under **Routes** and on the driver's phone.
-      Tap **Open route in Google Maps** and check the stops match the list.
-   6. Send a message from `/contact` and check it arrives.
+   3. Copy the invite link from **Drivers**, sign up a test driver with it, approve them,
+      and add their hours.
+   4. Book a pickup at `/STEM` in one of those hours; about 2–3 minutes later the route
+      appears under **Routes** and on the driver's phone. Tap **Open route in Google
+      Maps** and check the stops match the list.
+   5. Send a message from `/STEM/contact` and check it arrives.
 
-**Changing the sending email:** update `EMAIL_FROM`, `SMTP_USER` and `SMTP_PASS` in
-Vercel and redeploy. No code changes are needed. All emails, including password
+`npm run cf:preview` runs the Cloudflare build locally (Workers runtime). The local
+PGlite database doesn't run there, so preview needs a Supabase project in `.dev.vars`.
+
+**Changing the sending email:** update `EMAIL_FROM` and `SMTP_USER` in `wrangler.jsonc`
+and the `SMTP_PASS` secret, then redeploy. No code changes are needed. All emails, including password
 resets, go through this account.
-**Changing the admin password:** generate a new hash, update `ADMIN_PASSWORD_HASH`,
-and redeploy. Existing admin sessions end.
+**Changing the admin password:** generate a new hash and run
+`npx wrangler secret put ADMIN_PASSWORD_HASH`. Existing admin sessions end.
 
 ## Privacy and security
 
@@ -228,15 +206,10 @@ and redeploy. Existing admin sessions end.
 
 ## Costs and limits
 
-Everything runs on free tiers:
-
-| Service | Free limit |
-|---|---|
-| Supabase | 500 MB |
-| Render | sleeps when idle; the first plan of the day may use the fallback |
-| ORS | 2,000 requests a day |
-| Gmail | about 500 emails a day |
-| Nominatim | 1 request per second |
-
-**Vercel Hobby** is for non-commercial use. Check that StemCycle qualifies; the app
-also runs on any Node host with the same environment variables.
+| Service | Plan | Limit to know |
+|---|---|---|
+| Cloudflare Workers | Free, or Paid ($5/mo) | Free: 100k requests/day and **10 ms CPU per request**. Next.js page renders often need more, so pages may fail with error 1102 on the free plan; Workers Paid raises it to 30 s. |
+| Supabase | Free | 500 MB; pauses after 7 idle days (the daily job prevents it) |
+| Gmail | Free | about 500 emails a day |
+| ORS / Nominatim | Free | 2,000 requests a day / 1 request per second |
+| Render (optional solver) | Free | sleeps when idle; the built-in planner covers it |

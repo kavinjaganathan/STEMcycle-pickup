@@ -1,0 +1,32 @@
+{
+  // StemCycle Pickup as a Cloudflare Worker, served at https://ftcoverdrive.org/STEM
+  // through the team site's Worker (service binding "STEMCYCLE"). Build and deploy:
+  //   npm run cf:deploy
+  // Secrets (never in this file):  npx wrangler secret put <NAME>
+  //   SUPABASE_ANON_KEY  SUPABASE_SERVICE_ROLE_KEY  ADMIN_PASSWORD_HASH
+  //   ADMIN_SESSION_SECRET  RATE_LIMIT_SALT  CRON_SECRET  TURNSTILE_SECRET_KEY
+  //   SMTP_PASS (or RESEND_API_KEY)  DRIVER_INVITE_CODE  SOLVER_SECRET  ORS_API_KEY
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stemcycle-pickup",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-12",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  // Only reachable through ftcoverdrive.org/STEM, not a separate workers.dev URL.
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "vars": {
+    "APP_URL": "https://ftcoverdrive.org/STEM",
+    "NEXT_PUBLIC_BASE_PATH": "/STEM",
+    "DATA_BACKEND": "supabase",
+    "SUPABASE_URL": "",
+    "ADMIN_EMAIL": "",
+    "EMAIL_PROVIDER": "smtp",
+    "EMAIL_FROM": "ftcoverdrive17294@gmail.com",
+    "SMTP_USER": "ftcoverdrive17294@gmail.com",
+    "SMTP_HOST": "smtp.gmail.com",
+    "SMTP_PORT": "465",
+    "SOLVER_URL": ""
+  }
+}

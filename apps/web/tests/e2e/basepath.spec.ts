@@ -93,6 +93,14 @@ test("everything works under /STEM", async ({ page, request }) => {
   expect(broken).toEqual([]);
 });
 
+test("private areas are marked noindex", async ({ request }) => {
+  for (const p of ["/STEM/login", "/STEM/admin/login", "/STEM/signup", "/STEM/api/health"]) {
+    expect((await request.get(p)).headers()["x-robots-tag"], p).toBe("noindex, nofollow");
+  }
+  expect((await request.get("/STEM")).headers()["x-robots-tag"]).toBeUndefined();
+  expect(await (await request.get("/STEM/robots.txt")).text()).toContain("Disallow: /STEM/admin");
+});
+
 test("cross-site writes are blocked; the public site's own origin is allowed", async ({
   request,
 }) => {
