@@ -7,6 +7,8 @@ test.skip(!process.env.SCREENSHOTS, "set SCREENSHOTS=1 to capture screenshots");
 const OUT = process.env.SCREENSHOTS_DIR ?? "test-results/screens";
 
 test("capture screens", async ({ page }, info) => {
+  if (process.env.SCREEN_WIDTH)
+    await page.setViewportSize({ width: Number(process.env.SCREEN_WIDTH), height: 900 });
   await blockMapTiles(page);
   if (process.env.SCREEN_BOOK) {
     await bookPickup(page.request, { name: "Grace Hopper" });
@@ -19,7 +21,7 @@ test("capture screens", async ({ page }, info) => {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
     await page.screenshot({
-      path: `${OUT}/${info.project.name}${path.replace(/\//g, "_")}.png`,
+      path: `${OUT}/${info.project.name}${process.env.SCREEN_WIDTH ?? ""}${path.replace(/\//g, "_")}.png`,
       fullPage: true,
     });
   }

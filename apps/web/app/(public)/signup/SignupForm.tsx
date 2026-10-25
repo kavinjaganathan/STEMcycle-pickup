@@ -15,7 +15,13 @@ const LABELS: Record<string, string> = {
   password: "Password",
 };
 
-export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey: string }) {
+export function SignupForm({
+  invite,
+  turnstileSiteKey,
+}: {
+  invite: string;
+  turnstileSiteKey: string;
+}) {
   const [errors, setErrors] = useState<Errors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -134,6 +140,7 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey: string }) {
         {input("password", { type: "password", autoComplete: "new-password" })}
       </Field>
 
+      <input type="hidden" name="invite" value={invite} />
       {/* Honeypot: hidden from people and screen readers. */}
       <div aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">
         <label htmlFor="su-website">Website</label>

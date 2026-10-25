@@ -121,9 +121,13 @@ export function PickupForm({
 
   if (slots.length === 0) {
     return (
-      <p role="status">
-        No pickup times are open right now. Our volunteer drivers add weekend hours every week,
-        so please check back soon.
+      <p role="status" className="leading-relaxed">
+        No pickup times are open right now. Times appear as our volunteer drivers add their weekend
+        hours, so please check back soon, or{" "}
+        <a href="/contact" className="font-bold underline underline-offset-4">
+          contact us
+        </a>
+        .
       </p>
     );
   }
@@ -231,8 +235,8 @@ export function PickupForm({
       >
         <legend className="mb-1 text-xl font-extrabold tracking-tight">Pickup time</legend>
         <p id="slot-hint" className="text-sm text-muted">
-          We pick up on Saturdays and Sundays. Each time is a 1-hour window when a volunteer
-          driver is available.
+          We pick up on Saturdays and Sundays. Each time is a 1-hour window when a volunteer driver
+          is available.
         </p>
         <div role="group" aria-label="Day">
           <p className="mb-2 text-sm font-bold" aria-hidden="true">
@@ -326,8 +330,8 @@ function Confirmation({
       </h2>
       {result.slot && (
         <p>
-          We&apos;ll come by on <strong>{formatSlot(result.slot)}</strong>. Please leave your
-          books by the front door before your hour starts.
+          We&apos;ll come by on <strong>{formatSlot(result.slot)}</strong>. Please leave your books
+          by the front door before your hour starts.
         </p>
       )}
       {result.emailSent ? (

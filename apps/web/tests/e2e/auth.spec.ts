@@ -6,8 +6,10 @@ import { expectNoAxeViolations } from "./helpers";
 
 test("a new driver signs up, signs in and waits for approval", async ({ page }, info) => {
   const email = `newdriver-${info.project.name}-${Date.now()}@example.com`;
-  await page.goto("/drive");
+  // Drivers arrive through the invite link the admin shares.
+  await page.goto("/drive?invite=e2e-invite-0123");
   await page.getByRole("link", { name: "Sign up to drive" }).click();
+  await page.waitForURL(/\/signup\?invite=/);
   await expectNoAxeViolations(page);
 
   await page.getByLabel("Full name").fill("Mae Jemison");
@@ -39,6 +41,7 @@ test("a new driver signs up, signs in and waits for approval", async ({ page }, 
       phone: "2145550100",
       capacity_boxes: 15,
       password: "another long password",
+      invite: "e2e-invite-0123",
     },
   });
   expect(again.status()).toBe(201);
@@ -117,4 +120,27 @@ test("admin login is rate limited", async ({ request }, info) => {
   }
   expect(statuses.slice(0, 5)).toEqual([400, 400, 400, 400, 400]);
   expect(statuses[5]).toBe(429);
+});
+
+test("driver sign-up needs the invite, enforced by the server", async ({ page, request }) => {
+  await page.goto("/signup");
+  await expect(page.getByText(/Driver sign-up is by invitation/)).toBeVisible();
+  await expect(page.getByLabel("Password")).toHaveCount(0);
+  await page.goto("/signup?invite=wrong");
+  await expect(page.getByText(/Driver sign-up is by invitation/)).toBeVisible();
+
+  const data = {
+    full_name: "Mae Jemison",
+    email: `uninvited-${Date.now()}@example.com`,
+    phone: "2145550100",
+    capacity_boxes: 10,
+    password: "a good long password",
+  };
+  const headers = { "X-Forwarded-For": `10.8.${Math.floor(Math.random() * 250)}.1` };
+  expect((await request.post("/api/auth/signup", { headers, data })).status()).toBe(403);
+  expect(
+    (
+      await request.post("/api/auth/signup", { headers, data: { ...data, invite: "nope" } })
+    ).status(),
+  ).toBe(403);
 });

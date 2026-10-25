@@ -6,6 +6,7 @@ import { api, errorText } from "@/lib/client/api";
 import type { AdminDriver, DriverStatus } from "@/lib/db/admin";
 import { formatBlocks, formatSlotDate } from "@/lib/format";
 import { formatPhone } from "@/lib/validation";
+import { InviteLink } from "./InviteLink";
 import { useLoad } from "./useLoad";
 
 const GROUPS: { status: DriverStatus; title: string; empty: string }[] = [
@@ -14,7 +15,7 @@ const GROUPS: { status: DriverStatus; title: string; empty: string }[] = [
   { status: "disabled", title: "Turned off", empty: "None." },
 ];
 
-export function DriversAdmin() {
+export function DriversAdmin({ inviteUrl }: { inviteUrl: string | null }) {
   const { data, error, setError, reload } = useLoad(
     "/api/admin/drivers",
     (b: { drivers: AdminDriver[] }) => b.drivers,
@@ -46,6 +47,7 @@ export function DriversAdmin() {
   return (
     <>
       <PageHeader eyebrow="Admin" title="Drivers" />
+      <InviteLink url={inviteUrl} />
       {error && (
         <div className="mb-4">
           <Notice kind="error">{error}</Notice>

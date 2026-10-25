@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MapLine, MapMarker } from "@/components/map/LeafletMap";
 import { Button, Card, Notice, PageHeader, Spinner, StatusBadge } from "@/components/ui";
 import { api, errorText } from "@/lib/client/api";
-import type { AdminWeekend, PlanRoute, WeekendDay } from "@/lib/db/routing";
+import { RouteNavigation } from "@/components/route/RouteNavigation";
+import type { AdminWeekend, Depot, PlanRoute, WeekendDay } from "@/lib/db/routing";
 import { formatBlocks, formatHourRange, formatSlotDate, formatTime } from "@/lib/format";
 
 const LeafletMap = dynamic(() => import("@/components/map/LeafletMap").then((m) => m.LeafletMap), {
@@ -312,7 +313,14 @@ function DayView({
 
       <div className="grid gap-4 lg:grid-cols-2">
         {routes.map((r) => (
-          <RouteCard key={r.id} r={r} day={day} busy={busy} onAssign={onAssign} />
+          <RouteCard
+            key={r.id}
+            r={r}
+            depot={plan?.depot ?? null}
+            day={day}
+            busy={busy}
+            onAssign={onAssign}
+          />
         ))}
       </div>
 
@@ -336,11 +344,13 @@ function DayView({
 
 function RouteCard({
   r,
+  depot,
   day,
   busy,
   onAssign,
 }: {
   r: PlanRoute;
+  depot: Depot | null;
   day: WeekendDay;
   busy: boolean;
   onAssign: (pickupId: string, driverId: string | null) => void;
@@ -360,6 +370,9 @@ function RouteCard({
           {capacity ? `/${capacity}` : ""} boxes
         </p>
       </header>
+      <div className="border-b border-line px-4 py-3">
+        <RouteNavigation depot={depot} stops={r.stops} />
+      </div>
       <ol className="divide-y divide-line">
         {r.stops.map((s) => (
           <li key={s.id} className="grid grid-cols-[2rem_1fr] gap-x-3 px-4 py-3">

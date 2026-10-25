@@ -6,9 +6,30 @@ their routes automatically.
 
 | Who | Where | What |
 |---|---|---|
-| Residents | `/` | Book a 1-hour Saturday/Sunday slot (only hours a driver is free), get a confirmation email with a cancel link. No account. |
-| Drivers | `/drive`, `/signup`, `/driver` | Sign up (name, phone, vehicle capacity in boxes), wait for approval, set weekend hours, follow their route: ETAs, Maps links, "Mark picked up" (works offline). |
-| Admin | `/admin` | One shared login. Pickups (filters, CSV), drivers (approve, capacity), routes (map, unassigned, reassign, re-run), settings (depot). |
+| Residents | `/`, `/contact` | Book a 1-hour Saturday/Sunday slot (only hours a driver is free), get a confirmation email with a cancel link. No account. Contact Us form. |
+| Drivers | invite link → `/signup`; `/login` (footer: "Volunteer sign in"); `/driver` | Sign up by invitation, wait for approval, set weekend hours, follow their route: every stop in order, **Open route in Google Maps**, "Mark picked up" (works offline). |
+| Admin | `/admin/login` (not linked publicly) | One shared login. Pickups (filters, CSV), drivers (approve, capacity, invite link), routes (map, unassigned, reassign, re-run, Google Maps link), settings (depot). |
+
+**Driver access.** The public site doesn't advertise driver sign-up. With
+`DRIVER_INVITE_CODE` set, `/signup` and its API only accept the invite link shown on
+**Admin → Drivers** (`/signup?invite=…`); anyone else sees "sign-up is by invitation".
+Every new account is still inactive until the admin approves it (enforced in the
+database, not just the UI). Changing the code retires old links.
+
+**Google Maps hand-off.** Each route has **Open route in Google Maps**: depot, every
+stop in the listed order, back to the depot, using Google's keyless Maps URLs. Google
+takes 9 stops between start and end per link, so longer routes become numbered parts
+("Part 1 of 3: Depot → Stop 10", "Part 2: Stop 10 → Stop 20", …), each starting where
+the last ended. Mid-route, drivers also get **Continue from my location** through the
+stops they haven't picked up (Google uses the phone's location; the app never asks for
+it). Cancelled stops are left out and the page says so. No Google API key is needed;
+the on-page map uses OpenStreetMap.
+
+**Contact Us.** `/contact` shows the contact address and a form that emails the message
+to it (reply-to: the sender) through the app's mailer. The address is `CONTACT_EMAIL`,
+else the reply-to address in Settings, else `EMAIL_FROM`. It's protected by
+validation, Turnstile, a honeypot and rate limits. The form only says "sent" if the
+email really went out; otherwise it shows the address to write to.
 
 ## How it works
 
@@ -67,6 +88,7 @@ npm run dev                     # http://localhost:3000
   depot and drivers Dana and Sam (with hours on the next four weekends) plus Pat (pending).
   To reset, delete the folder.
 - **Signing in:** `/login` has **Sign in as Admin / Dana / Sam / Pat** buttons (local only).
+  Driver sign-up is at `/signup` (or `/signup?invite=…` if `DRIVER_INVITE_CODE` is set).
   The admin login form also works with `admin@stemcycle.local` / `stemcycle-admin`.
 - **Email:** messages are written to `apps/web/.data/outbox/` instead of being sent.
 - **Routing:** a timer inside the dev server does the pg_cron job (every 30 s).
@@ -124,6 +146,8 @@ Keep every secret in the hosting dashboards, never in git.
    | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | from Supabase |
    | `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH` | the shared admin login |
    | `ADMIN_SESSION_SECRET`, `RATE_LIMIT_SALT`, `CRON_SECRET` | each `openssl rand -hex 32` |
+   | `DRIVER_INVITE_CODE` | `openssl rand -hex 12` (makes sign-up invite-only) |
+   | `CONTACT_EMAIL` (optional) | inbox for Contact Us; defaults to `EMAIL_FROM` |
    | `EMAIL_PROVIDER` = `smtp`, `EMAIL_FROM`, `SMTP_USER` | the sending Gmail address |
    | `SMTP_PASS` (`SMTP_HOST`/`SMTP_PORT` default to Gmail 465) | the App Password |
    | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | from Cloudflare |
@@ -135,12 +159,21 @@ Keep every secret in the hosting dashboards, never in git.
    database whether any weekend needs work, and only then calls the app. Vercel's
    daily cron (`vercel.json`) also runs data retention, geocoding retries and a
    routing tick as a backup, and keeps the free Supabase project from pausing.
-8. **Smoke test:**
+8. **Deploy from the command line instead (optional):**
+   ```bash
+   npm i -g vercel && cd apps/web
+   vercel link              # pick or create the project; root is apps/web
+   vercel env pull          # optional: check the variables you set
+   vercel --prod            # builds with `next build` and deploys
+   ```
+9. **Smoke test:**
    1. `/api/health` returns `{"status":"ok"}`.
    2. Sign in at `/admin/login` and set the depot (**Settings → Find coordinates**).
-   3. Sign up a test driver at `/signup`, approve them under **Drivers**, and add their hours.
+   3. Copy the invite link from **Drivers**, sign up a test driver with it, approve them, and add their hours.
    4. Book a pickup at `/` in one of those hours.
    5. About 2–3 minutes later, the route appears under **Routes** and on the driver's phone.
+      Tap **Open route in Google Maps** and check the stops match the list.
+   6. Send a message from `/contact` and check it arrives.
 
 **Changing the sending email:** update `EMAIL_FROM`, `SMTP_USER` and `SMTP_PASS` in
 Vercel and redeploy. No code changes are needed. All emails, including password

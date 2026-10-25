@@ -131,8 +131,29 @@ export const driverSignupSchema = driverProfileSchema.extend({
     .toLowerCase()
     .pipe(z.email("Please enter a valid email address.").max(254)),
   password,
+  invite: z.string().max(200).optional(),
   website: z.string().max(200).optional(),
   turnstileToken: z.string().max(4096).optional(),
 });
 
 export const newPasswordSchema = z.object({ password });
+
+export const contactSchema = z.object({
+  name: singleLine(2, 100, "name"),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(z.email("Please enter a valid email address.").max(254)),
+  message: z
+    .string()
+    .transform((s) => s.replace(CONTROL_CHARS, "").trim())
+    .pipe(
+      z
+        .string()
+        .min(10, "Please write a little more (at least 10 characters).")
+        .max(2000, "Please keep your message under 2,000 characters."),
+    ),
+  website: z.string().max(200).optional(),
+  turnstileToken: z.string().max(4096).optional(),
+});

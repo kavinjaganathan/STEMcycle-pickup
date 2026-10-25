@@ -65,6 +65,12 @@ test("bookings are routed automatically and the admin can reassign a stop", asyn
   await expect(samRoute.getByLabel("Assign Stop Alpha to")).toBeVisible();
   await expect(samRoute.getByText("Assigned")).toBeVisible();
 
+  const link = samRoute.getByRole("link", { name: "Open route in Google Maps" });
+  await expect(link).toHaveAttribute(
+    "href",
+    /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&origin=/,
+  );
+
   await page.getByRole("button", { name: "Re-run routing now" }).click();
   await expect(page.getByText("Routes re-planned.")).toBeVisible();
   await expect(samRoute.getByLabel("Assign Stop Alpha to")).toBeVisible();

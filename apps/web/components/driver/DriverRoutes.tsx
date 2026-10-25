@@ -17,7 +17,8 @@ import {
   TEXTBOOK_LABEL,
 } from "@/lib/format";
 import { formatPhone } from "@/lib/validation";
-import { appleMapsUrl, googleMapsUrl, googleMultiStopUrl } from "./links";
+import { RouteNavigation } from "@/components/route/RouteNavigation";
+import { appleMapsUrl, googleMapsUrl } from "@/lib/maps";
 
 const LeafletMap = dynamic(() => import("@/components/map/LeafletMap").then((m) => m.LeafletMap), {
   ssr: false,
@@ -267,7 +268,6 @@ function RouteView({
   const done = active.filter((s) => s.status === "picked_up").length;
   const remaining = active.filter((s) => s.status !== "picked_up");
   const next = remaining[0];
-  const multi = googleMultiStopUrl(remaining.map((s) => ({ lat: s.lat, lng: s.lng })));
 
   const markers = useMemo<MapMarker[]>(
     () => [
@@ -329,17 +329,10 @@ function RouteView({
             />
           </div>
         </div>
+        <div className="mt-4">
+          <RouteNavigation depot={depot} stops={route.stops} showRemaining />
+        </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          {multi && remaining.length > 1 && (
-            <a
-              href={multi}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-10 items-center rounded-[2px] border border-ink px-4 text-sm font-bold hover:bg-ink hover:text-white"
-            >
-              Navigate next {Math.min(remaining.length, 10)} stops
-            </a>
-          )}
           <Button onClick={() => setShowMap((v) => !v)} aria-expanded={showMap}>
             {showMap ? "Hide map" : "Show map"}
           </Button>

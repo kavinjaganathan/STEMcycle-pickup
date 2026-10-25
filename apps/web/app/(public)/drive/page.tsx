@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 
-export const metadata: Metadata = { title: "Drive with us" };
+export const metadata: Metadata = {
+  title: "Drive with us",
+  robots: { index: false, follow: false },
+};
+
+// Not linked from the public site: the team shares it (and the invite link) with new volunteers.
 
 const STEPS = [
   ["Sign up", "Tell us your name, phone and how many boxes your vehicle holds."],
@@ -10,7 +16,7 @@ const STEPS = [
   ["Follow your route", "We build an optimized route automatically. Open it on your phone."],
 ] as const;
 
-export default function DrivePage() {
+export default function DrivePage(props: PageProps<"/drive">) {
   return (
     <div className="max-w-3xl">
       <p className="eyebrow">Volunteer drivers</p>
@@ -34,12 +40,9 @@ export default function DrivePage() {
         ))}
       </ol>
       <div className="mt-10 flex flex-wrap gap-4">
-        <Link
-          href="/signup"
-          className="inline-flex min-h-12 items-center rounded-[2px] border border-ink bg-ink px-6 font-bold text-white transition-colors hover:border-brand-strong hover:bg-brand-strong"
-        >
-          Sign up to drive
-        </Link>
+        <Suspense fallback={null}>
+          <SignupLink searchParams={props.searchParams} />
+        </Suspense>
         <Link
           href="/login"
           className="inline-flex min-h-12 items-center rounded-[2px] border border-ink px-6 font-bold transition-colors hover:bg-ink hover:text-white"
@@ -48,5 +51,20 @@ export default function DrivePage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+/** Carries the invite from /drive?invite=… through to the sign-up form. */
+async function SignupLink({ searchParams }: { searchParams: PageProps<"/drive">["searchParams"] }) {
+  const invite = (await searchParams).invite;
+  const href =
+    typeof invite === "string" ? `/signup?invite=${encodeURIComponent(invite)}` : "/signup";
+  return (
+    <Link
+      href={href}
+      className="inline-flex min-h-12 items-center rounded-[2px] border border-ink bg-ink px-6 font-bold text-white transition-colors hover:border-brand-strong hover:bg-brand-strong"
+    >
+      Sign up to drive
+    </Link>
   );
 }

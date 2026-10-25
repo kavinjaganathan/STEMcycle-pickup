@@ -105,15 +105,42 @@ test("drivers see only their own stops and mark them picked up, even offline", a
   await expect(first.getByText("Next stop")).toBeVisible();
   await expect(first.getByRole("link", { name: "Open in Google Maps" })).toHaveAttribute(
     "href",
-    /google\.com\/maps\/dir\/\?api=1&destination=3\d\.\d+,-9\d\.\d+/,
+    /google\.com\/maps\/dir\/\?api=1&destination=3\d\.\d+%2C-9\d\.\d+/,
   );
   await expect(first.getByRole("link", { name: "Open in Apple Maps" })).toHaveAttribute(
     "href",
-    /maps\.apple\.com\/\?daddr=/,
+    /maps\.apple\.com\/\?daddr=3\d\.\d+%2C-9\d\.\d+/,
+  );
+
+  // The whole route goes to Google Maps: depot, both stops in list order, back to the depot.
+  const routeLink = p.getByRole("link", { name: "Open route in Google Maps" });
+  await expect(routeLink).toHaveAttribute("target", "_blank");
+  const url = new URL((await routeLink.getAttribute("href"))!);
+  expect(url.origin + url.pathname).toBe("https://www.google.com/maps/dir/");
+  const w0 = await (await p.request.get(`/api/driver/routes?weekend=${sat}`)).json();
+  const route = w0.days[0].routes[0];
+  const depot = w0.days[0].depot;
+  const ll = (x: { lat: number; lng: number }) => `${x.lat.toFixed(6)},${x.lng.toFixed(6)}`;
+  expect(url.searchParams.get("origin")).toBe(ll(depot));
+  expect(url.searchParams.get("destination")).toBe(ll(depot));
+  expect(url.searchParams.get("waypoints")).toBe(route.stops.map(ll).join("|"));
+  expect(url.searchParams.get("travelmode")).toBe("driving");
+  // The on-screen list is in the same order.
+  const listed = await danaStops.evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
+  expect(listed).toEqual(
+    route.stops.map(
+      (s: { seq: number; address_line: string }) => `Stop ${s.seq}: ${s.address_line}`,
+    ),
   );
 
   await first.getByRole("button", { name: "Mark picked up" }).click();
   await expect(first.getByRole("button", { name: /Picked up · Undo/ })).toBeVisible();
+  // Mid-route, a second link continues from the phone's location through what's left.
+  const cont = p.getByRole("link", { name: /Continue from my location \(1 stop left\)/ });
+  const curl = new URL((await cont.getAttribute("href"))!);
+  expect(curl.searchParams.get("origin")).toBeNull();
+  expect(curl.searchParams.get("waypoints")).toBe(ll(route.stops[1]));
+  expect(curl.searchParams.get("destination")).toBe(ll(depot));
   await expect(p.getByText("1 of 2 picked up")).toBeVisible();
   await first.getByRole("button", { name: /Undo/ }).click();
   await expect(p.getByText("0 of 2 picked up")).toBeVisible();

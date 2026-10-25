@@ -17,7 +17,10 @@ export function SiteHeader({ tabs, right }: { tabs: TabItem[]; right?: React.Rea
           StemCycle
         </Link>
         {right && <div className="mb-3 ml-auto flex items-center gap-2 sm:order-last">{right}</div>}
-        <nav aria-label="Main" className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
+        <nav
+          aria-label="Main"
+          className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1"
+        >
           {/* The active tab depends on the URL, which isn't known at prerender time. */}
           <Suspense fallback={<TabList tabs={tabs} active={null} />}>
             <ActiveTabs tabs={tabs} />

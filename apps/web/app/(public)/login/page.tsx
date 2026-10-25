@@ -1,32 +1,28 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { getLocalDb } from "@/lib/db";
 import { env } from "@/lib/env";
 import { DevLogin, DriverLogin } from "./LoginForms";
 
-export const metadata: Metadata = { title: "Driver sign in" };
+export const metadata: Metadata = {
+  title: "Volunteer sign in",
+  robots: { index: false, follow: false },
+};
 
 export default function LoginPage() {
   return (
     <div className="mx-auto max-w-md">
       <p className="eyebrow">Volunteer drivers</p>
-      <h1 className="display mt-1 text-4xl">Sign in</h1>
+      <h1 className="display mt-1 text-4xl">Volunteer sign in</h1>
       <div className="panel mt-8 p-5 sm:p-8">
         <Suspense fallback={null}>
           <DriverLogin />
         </Suspense>
       </div>
-      <p className="mt-6 text-sm text-muted">
-        New here?{" "}
-        <Link href="/signup" className="font-bold text-ink underline underline-offset-4">
-          Sign up to drive
-        </Link>
-        <span aria-hidden="true"> · </span>
-        <Link href="/admin/login" className="font-bold text-ink underline underline-offset-4">
-          Admin sign in
-        </Link>
+      <p className="mt-6 text-sm leading-relaxed text-muted">
+        This sign-in is for StemCycle volunteer drivers. Drivers join through an invitation from the
+        StemCycle team.
       </p>
       <Suspense fallback={null}>
         <LocalUsers />

@@ -1,5 +1,6 @@
 import { errorResponse, json } from "@/lib/api";
 import { createDriverAccount } from "@/lib/auth";
+import { inviteOk } from "@/lib/auth/invite";
 import { getDeps, readJson } from "@/lib/deps";
 import { driverWelcomeEmail } from "@/lib/email/templates";
 import { log } from "@/lib/logger";
@@ -26,8 +27,14 @@ export async function POST(request: Request) {
         400,
       );
     }
-    const { website, turnstileToken, ...input } = parsed.data;
+    const { website, turnstileToken, invite, ...input } = parsed.data;
     if (website) return json(DONE, 201); // honeypot
+    if (!inviteOk(invite)) {
+      return json(
+        { error: "This sign-up link isn't valid. Ask the StemCycle team for a new one." },
+        403,
+      );
+    }
     if (!(await deps.verifyTurnstile(turnstileToken, ip))) {
       return json({ error: "We couldn't verify you're human. Please try the check again." }, 403);
     }

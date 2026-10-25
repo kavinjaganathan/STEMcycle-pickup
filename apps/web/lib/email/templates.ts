@@ -167,3 +167,33 @@ export function passwordResetEmail(p: { orgName: string; resetUrl: string }) {
   });
   return { subject, text, html };
 }
+
+/** A Contact Us message, delivered to the organization's inbox (reply goes to the sender). */
+export function contactMessageEmail(p: {
+  orgName: string;
+  name: string;
+  email: string;
+  message: string;
+}) {
+  const subject = `Website message from ${p.name}`;
+  const text = [
+    `From: ${p.name} <${p.email}>`,
+    "",
+    p.message,
+    "",
+    `Sent with the Contact Us form. Reply to this email to answer ${p.name}.`,
+  ].join("\n");
+  const html = layout({
+    orgName: p.orgName,
+    eyebrow: "Contact Us form",
+    title: `Message from ${p.name}`,
+    body:
+      rows([
+        ["From", p.name],
+        ["Email", p.email],
+      ]) +
+      `<p style="margin:0 0 20px;line-height:1.6;white-space:pre-wrap">${e(p.message)}</p>` +
+      para("Reply to this email to answer them."),
+  });
+  return { subject, text, html };
+}
