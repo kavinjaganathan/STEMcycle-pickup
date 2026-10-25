@@ -18,6 +18,7 @@ import { addDays } from "@/lib/dates";
 import { formatHourRange, formatSlotDate, TEXTBOOK_LABEL } from "@/lib/format";
 import { TEXTBOOK_TYPES, type TextbookType } from "@/lib/shared";
 import { formatPhone } from "@/lib/validation";
+import { LocationFixer } from "./LocationFixer";
 
 function localToday() {
   const d = new Date();
@@ -26,12 +27,7 @@ function localToday() {
 
 type Issue = "all" | "unassigned" | "location";
 
-export function PickupsAdmin({
-  renderExtraActions,
-}: {
-  /** Extra per-pickup actions (e.g. location fixing), given a reload callback. */
-  renderExtraActions?: (p: AdminPickup, reload: () => Promise<void>) => React.ReactNode;
-} = {}) {
+export function PickupsAdmin() {
   const [from, setFrom] = useState(localToday);
   const [to, setTo] = useState(() => addDays(localToday(), 28));
   const [statuses, setStatuses] = useState<PickupStatus[]>(["pending", "scheduled"]);
@@ -41,6 +37,7 @@ export function PickupsAdmin({
   const [pickups, setPickups] = useState<AdminPickup[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [fixing, setFixing] = useState<AdminPickup | null>(null);
 
   const query = useMemo(
     () => new URLSearchParams({ from, to, status: statuses.join(",") }).toString(),
@@ -66,6 +63,18 @@ export function PickupsAdmin({
     setBusyId(p.id);
     try {
       await api(`/api/admin/pickups/${p.id}`, { method: "PATCH", body: { status } });
+      await load();
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function locate(p: AdminPickup) {
+    setBusyId(p.id);
+    try {
+      await api(`/api/admin/pickups/${p.id}/geocode`, { method: "POST" });
       await load();
     } catch (err) {
       setError(errorText(err));
@@ -230,13 +239,25 @@ export function PickupsAdmin({
                     p={p}
                     busy={busyId === p.id}
                     onStatus={(s) => setStatus(p, s)}
-                    extra={renderExtraActions?.(p, load)}
+                    onLocate={() => locate(p)}
+                    onFixLocation={() => setFixing(p)}
                   />
                 </li>
               ))}
             </ul>
           )}
         </>
+      )}
+
+      {fixing && (
+        <LocationFixer
+          pickup={fixing}
+          onClose={() => setFixing(null)}
+          onSaved={() => {
+            setFixing(null);
+            void load();
+          }}
+        />
       )}
     </>
   );
@@ -278,12 +299,14 @@ function PickupRow({
   p,
   busy,
   onStatus,
-  extra,
+  onLocate,
+  onFixLocation,
 }: {
   p: AdminPickup;
   busy: boolean;
   onStatus: (s: PickupStatus) => void;
-  extra?: React.ReactNode;
+  onLocate: () => void;
+  onFixLocation: () => void;
 }) {
   const open = p.status === "pending" || p.status === "scheduled";
   return (
@@ -316,7 +339,16 @@ function PickupRow({
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          {extra}
+          {p.geocode_status === "pending" && open && (
+            <Button size="sm" disabled={busy} onClick={onLocate}>
+              Locate
+            </Button>
+          )}
+          {(p.geocode_status === "needs_review" || p.geocode_status === "failed") && (
+            <Button size="sm" onClick={onFixLocation}>
+              Fix location
+            </Button>
+          )}
           {open && (
             <Button
               size="sm"
