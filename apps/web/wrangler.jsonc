@@ -8,6 +8,8 @@
   //   SMTP_PASS (or RESEND_API_KEY)  DRIVER_INVITE_CODE  SOLVER_SECRET  ORS_API_KEY
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "stemcycle-pickup",
+  // Same account as the team site (a service binding only works within one account).
+  "account_id": "759eb5211e52ef3fe3371a1bdfa70566",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-10-12",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
