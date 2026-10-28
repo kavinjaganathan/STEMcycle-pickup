@@ -42,9 +42,7 @@ test("visitors see the pickup service and Contact Us, not driver or admin tools"
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Donate your used textbooks." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Schedule a pickup" })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Three steps, no account needed." }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "You don't need an account" })).toBeVisible();
 });
 
 test("search engines are kept out of private areas", async ({ request }) => {

@@ -10,7 +10,7 @@ import { driverSignupSchema, fieldErrors } from "@/lib/validation";
 const DONE = {
   ok: true,
   message:
-    "Thanks for signing up! An admin will review your account and email you when it's approved. You can sign in now to check your details.",
+    "Thanks for signing up! We'll look over your details and email you once you're approved. You can sign in now to check them.",
 };
 
 export async function POST(request: Request) {

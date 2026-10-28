@@ -91,13 +91,13 @@ export function confirmationEmail(p: {
 export function driverWelcomeEmail(p: { orgName: string; name: string }) {
   const subject = `Thanks for signing up to drive for ${p.orgName}`;
   const line =
-    "We've received your driver sign-up. An admin will review it and email you when your account is approved; then you can add the weekend hours you're free.";
+    "Thanks for signing up to drive. Someone from the team will look over your details and email you once you're approved. After that, you can add the weekend hours you're free.";
   const text = [`Hi ${p.name},`, "", line, "", `— ${p.orgName}`].join("\n");
   const html = layout({
     orgName: p.orgName,
     eyebrow: "Driver sign-up",
     title: "Thanks for signing up",
-    body: para(`Hi ${p.name}. ${line}`),
+    body: para(`Hi ${p.name}, ${line.charAt(0).toLowerCase()}${line.slice(1)}`),
   });
   return { subject, text, html };
 }
@@ -108,7 +108,7 @@ export function driverApprovedEmail(p: { orgName: string; name: string; appUrl: 
   const text = [
     `Hi ${p.name},`,
     "",
-    "Your driver account is approved. Add the weekend hours you can drive:",
+    "You're approved to drive. Add the weekend hours you're free here:",
     url,
     "",
     `— ${p.orgName}`,
@@ -118,7 +118,7 @@ export function driverApprovedEmail(p: { orgName: string; name: string; appUrl: 
     eyebrow: "Account approved",
     title: "You're ready to drive",
     body: para(
-      `Hi ${p.name}, your driver account is approved. Add the weekend hours you can drive and we'll build your routes automatically.`,
+      `Hi ${p.name}, you're approved to drive. Add the weekend hours you're free, and the app will plan your routes.`,
     ),
     button: { href: url, label: "Set my availability" },
   });
@@ -140,8 +140,8 @@ export function routeEmail(p: {
       : `Your ${p.orgName} route changed (${weekend})`;
   const line =
     p.kind === "ready"
-      ? `Your pickup route for ${weekend} is final. Open it on your phone to see your stops, times and directions.`
-      : `An admin updated your pickup route for ${weekend}. Please check your stops and times again.`;
+      ? `Your route for ${weekend} is set. Open it on your phone to see your stops, times and directions.`
+      : `Your route for ${weekend} was changed. Please look over your stops and times again.`;
   const text = [`Hi ${p.name},`, "", line, url, "", `— ${p.orgName}`].join("\n");
   const html = layout({
     orgName: p.orgName,
@@ -156,7 +156,7 @@ export function routeEmail(p: {
 export function passwordResetEmail(p: { orgName: string; resetUrl: string }) {
   const subject = `Reset your ${p.orgName} password`;
   const line =
-    "Someone asked to reset the password for your driver account. If it was you, open this link within an hour and choose a new password. If not, you can ignore this email.";
+    "Someone asked to reset the password for your driver account. If that was you, open this link within an hour to choose a new one. If it wasn't, you can ignore this email.";
   const text = [line, "", p.resetUrl, "", `— ${p.orgName}`].join("\n");
   const html = layout({
     orgName: p.orgName,

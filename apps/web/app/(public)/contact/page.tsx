@@ -16,10 +16,11 @@ export default function ContactPage() {
       <section aria-labelledby="contact-title">
         <p className="eyebrow">Contact us</p>
         <h1 id="contact-title" className="display mt-2 text-4xl sm:text-5xl">
-          Questions? Get in touch.
+          Get in touch
         </h1>
         <p className="mt-5 max-w-[50ch] text-lg leading-relaxed text-muted">
-          Ask about a pickup, our service area, or a large donation. We&apos;ll reply by email.
+          Questions about a pickup, where we go, or a large donation? Send us a message and
+          we&apos;ll email you back.
         </p>
         <dl className="mt-6 space-y-2 text-lg">
           <Suspense fallback={null}>
@@ -36,8 +37,8 @@ export default function ContactPage() {
         </dl>
         <div className="mt-8 border-t border-ink pt-4 text-sm leading-relaxed text-muted">
           <p>
-            <strong className="text-ink">Need to cancel a pickup?</strong> Use the cancel link in
-            your confirmation email; it works right away.
+            <strong className="text-ink">Need to cancel?</strong> Use the link in your confirmation
+            email. You don&apos;t need to message us.
           </p>
         </div>
       </section>

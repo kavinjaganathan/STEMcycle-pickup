@@ -62,7 +62,7 @@ export function CancelPanel() {
     return (
       <p ref={resultRef} tabIndex={-1} role="status" className="text-lg">
         {view.kind === "done"
-          ? "Your pickup has been cancelled. Thanks for letting us know!"
+          ? "Your pickup is cancelled. Thanks for letting us know."
           : view.message}
       </p>
     );
@@ -71,7 +71,7 @@ export function CancelPanel() {
   const { state, slot } = view.body;
   if (state === "cancelled") return <p role="status">This pickup was already cancelled.</p>;
   if (state === "picked_up")
-    return <p role="status">These books have already been picked up — thank you for donating!</p>;
+    return <p role="status">These books were already picked up. Thanks for donating!</p>;
 
   return (
     <div className="space-y-4">

@@ -8,16 +8,16 @@ import { TEXTBOOK_TYPES } from "@/lib/shared";
 
 const STEPS = [
   [
-    "Pick a weekend hour",
-    "Choose a 1-hour window on a Saturday or Sunday. We only offer times when a volunteer driver is free.",
+    "Pick a time",
+    "Choose an open hour on a Saturday or Sunday. You'll only see times when one of our drivers is free.",
   ],
   [
-    "Leave the books out",
-    "Put them in boxes or bags by your front door before your hour starts. Your confirmation email has a link to cancel if plans change.",
+    "Put the books out",
+    "Box or bag them and leave them by your front door before your hour starts. If something comes up, there's a cancel link in your confirmation email.",
   ],
   [
-    "We take it from there",
-    "A StemCycle volunteer collects them, and we donate them to students in rural communities.",
+    "We pick them up",
+    "A volunteer collects the books during your hour, and we donate them to rural communities.",
   ],
 ] as const;
 
@@ -26,13 +26,13 @@ export default function Home() {
     <>
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-16">
         <section aria-labelledby="hero-title" className="lg:sticky lg:top-8 lg:self-start">
-          <p className="eyebrow">Textbook pickup · Frisco, Plano, McKinney</p>
+          <p className="eyebrow">Free textbook pickup in Frisco, Plano and McKinney</p>
           <h1 id="hero-title" className="display mt-2 text-4xl sm:text-5xl lg:text-6xl">
             Donate your used textbooks.
           </h1>
           <p className="mt-5 max-w-[50ch] text-lg leading-relaxed text-muted">
-            A StemCycle volunteer picks them up from your doorstep on a weekend, and we donate them
-            to students in rural communities. Booking takes about two minutes.
+            Leave them by your door and one of our volunteers will pick them up on a Saturday or
+            Sunday. Everything we collect goes to rural communities.
           </p>
           <a
             href="#schedule"
@@ -63,7 +63,7 @@ export default function Home() {
       <section aria-labelledby="how-title" className="mt-16 border-t border-ink pt-8 sm:mt-24">
         <p className="eyebrow">How it works</p>
         <h2 id="how-title" className="display mt-1 text-3xl">
-          Three steps, no account needed.
+          You don&apos;t need an account
         </h2>
         <ol className="mt-8 grid gap-8 md:grid-cols-3">
           {STEPS.map(([title, body], i) => (
@@ -87,7 +87,8 @@ export default function Home() {
             What we collect
           </h2>
           <p className="mt-2 leading-relaxed text-muted">
-            Used textbooks of every level. Tell us roughly how many and what kind when you book.
+            Any used textbooks. When you book, just tell us about how many you have and what level
+            they are.
           </p>
           <ul className="mt-4 flex flex-wrap gap-2">
             {TEXTBOOK_TYPES.map((t) => (
@@ -100,7 +101,8 @@ export default function Home() {
         <div>
           <h2 className="text-xl font-extrabold tracking-tight">Questions?</h2>
           <p className="mt-2 leading-relaxed text-muted">
-            Not sure if we pick up near you, or have a lot of books? We&apos;re happy to help.
+            Not sure if we come to your area, or have a really big stack of books? Send us a
+            message.
           </p>
           <Link
             href="/contact"

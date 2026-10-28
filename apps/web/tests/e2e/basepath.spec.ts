@@ -53,7 +53,7 @@ test("everything works under /STEM", async ({ page, request }) => {
   expect(cancelUrl.startsWith("http://localhost:3101/STEM/cancel/")).toBe(true);
   await page.goto(cancelUrl);
   await page.getByRole("button", { name: "Yes, cancel my pickup" }).click();
-  await expect(page.getByText("Your pickup has been cancelled.")).toBeVisible();
+  await expect(page.getByText("Your pickup is cancelled.")).toBeVisible();
 
   // Contact page shows the team website and sends messages.
   await page.goto("/STEM/contact");

@@ -39,9 +39,9 @@ test("resident books a pickup, gets an email, and cancels it", async ({ page }, 
   await page.getByRole("button", { name: "Schedule pickup" }).click();
 
   await expect(page.getByRole("heading", { name: /You're all set/ })).toBeFocused();
-  await expect(page.getByText(/We'll come by on (Saturday|Sunday)/)).toBeVisible();
+  await expect(page.getByText(/We'll come by (Saturday|Sunday)/)).toBeVisible();
   await expect(
-    page.getByText("A confirmation email with a cancel link is on its way."),
+    page.getByText("We've emailed you a confirmation with a link to cancel."),
   ).toBeVisible();
 
   await expect.poll(() => latestEmailTo(email)).toBeTruthy();
@@ -53,7 +53,7 @@ test("resident books a pickup, gets an email, and cancels it", async ({ page }, 
   await expect(page.getByText(/Your pickup is scheduled for/)).toBeVisible();
   expect((await axe(page).analyze()).violations).toEqual([]);
   await page.getByRole("button", { name: "Yes, cancel my pickup" }).click();
-  await expect(page.getByText("Your pickup has been cancelled.")).toBeVisible();
+  await expect(page.getByText("Your pickup is cancelled.")).toBeVisible();
 
   await page.reload();
   await expect(page.getByText("This pickup was already cancelled.")).toBeVisible();

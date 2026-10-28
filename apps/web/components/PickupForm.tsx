@@ -123,8 +123,8 @@ export function PickupForm({
   if (slots.length === 0) {
     return (
       <p role="status" className="leading-relaxed">
-        No pickup times are open right now. Times appear as our volunteer drivers add their weekend
-        hours, so please check back soon, or{" "}
+        There aren&apos;t any open pickup times right now. New times show up when our drivers add
+        their weekend hours, so check back in a few days, or{" "}
         <a href={withBase("/contact")} className="font-bold underline underline-offset-4">
           contact us
         </a>
@@ -236,8 +236,7 @@ export function PickupForm({
       >
         <legend className="mb-1 text-xl font-extrabold tracking-tight">Pickup time</legend>
         <p id="slot-hint" className="text-sm text-muted">
-          We pick up on Saturdays and Sundays. Each time is a 1-hour window when a volunteer driver
-          is available.
+          Pickups are on Saturdays and Sundays. Each time is a 1-hour window when a driver is free.
         </p>
         <div role="group" aria-label="Day">
           <p className="mb-2 text-sm font-bold" aria-hidden="true">
@@ -327,16 +326,16 @@ function Confirmation({
     <div className="space-y-3" role="status">
       <p className="eyebrow">Pickup booked</p>
       <h2 ref={headingRef} tabIndex={-1} className="display text-3xl">
-        You&apos;re all set — thank you!
+        You&apos;re all set. Thank you!
       </h2>
       {result.slot && (
         <p>
-          We&apos;ll come by on <strong>{formatSlot(result.slot)}</strong>. Please leave your books
-          by the front door before your hour starts.
+          We&apos;ll come by <strong>{formatSlot(result.slot)}</strong>. Please have your books by
+          the front door before then.
         </p>
       )}
       {result.emailSent ? (
-        <p className="text-muted">A confirmation email with a cancel link is on its way.</p>
+        <p className="text-muted">We&apos;ve emailed you a confirmation with a link to cancel.</p>
       ) : (
         <div className="border-l-4 border-brand bg-tint p-4 text-sm">
           <p>

@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 
 const STEPS = [
   ["Sign up", "Tell us your name, phone and how many boxes your vehicle holds."],
-  ["Get approved", "An admin checks your details and turns your account on."],
-  ["Add your hours", "Pick the weekend hours you can drive, like Sat 10–1 or Sun 1–4."],
-  ["Follow your route", "We build an optimized route automatically. Open it on your phone."],
+  ["Get approved", "Someone on the StemCycle team checks your details and turns on your account."],
+  ["Add your hours", "Mark the weekend hours you can drive, like Saturday 10 to 1."],
+  ["Follow your route", "The app puts your stops in order. Open it on your phone and go."],
 ] as const;
 
 export default function DrivePage(props: PageProps<"/drive">) {
@@ -22,8 +22,8 @@ export default function DrivePage(props: PageProps<"/drive">) {
       <p className="eyebrow">Volunteer drivers</p>
       <h1 className="display mt-2 text-4xl sm:text-5xl">Drive with StemCycle.</h1>
       <p className="mt-5 max-w-[56ch] text-lg leading-relaxed text-muted">
-        Spend a few weekend hours collecting textbooks from doorsteps around Frisco, Plano and
-        McKinney. You choose when; we plan the stops.
+        Spend a few weekend hours picking up donated textbooks around Frisco, Plano and McKinney.
+        You pick the hours, and the app plans your stops.
       </p>
       <ol className="mt-10 border-t border-ink">
         {STEPS.map(([title, body], i) => (
