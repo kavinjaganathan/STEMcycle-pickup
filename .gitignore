@@ -2,3 +2,7 @@
 node_modules/
 .env*
 !.env.example
+
+# Supabase CLI link state
+supabase/.temp/
+apps/web/supabase/.temp/
