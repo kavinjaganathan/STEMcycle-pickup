@@ -10,7 +10,26 @@ test("visitors see the pickup service and Contact Us, not driver or admin tools"
   for (const url of ["/", "/contact"]) {
     await page.goto(url);
     const nav = page.getByRole("navigation", { name: "Main" });
-    await expect(nav.getByRole("link")).toHaveText(["Schedule a pickup", "Contact us"]);
+    // The team site's tabs, with StemCycle as the current one and a way back.
+    await expect(nav.getByRole("link")).toHaveText([
+      "Home",
+      "Meet the Team",
+      "Awards",
+      "Alumni",
+      "StemCycle",
+    ]);
+    await expect(nav.getByRole("link", { name: "StemCycle" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(nav.getByRole("link", { name: "Home" })).toHaveAttribute(
+      "href",
+      "https://ftcoverdrive.org/",
+    );
+    await expect(nav.getByRole("link", { name: "Meet the Team" })).toHaveAttribute(
+      "href",
+      "https://ftcoverdrive.org/#team",
+    );
     const hrefs = await page
       .locator("a[href]")
       .evaluateAll((as) => as.map((a) => a.getAttribute("href")!));

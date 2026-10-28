@@ -79,12 +79,30 @@ body {
   box-shadow: 0 4px 0 var(--purple-deep);
 }
 
-/* Folder-tab navigation. */
+/* Folder-tab navigation, sized like the team site's (ftcoverdrive.org). */
+.team-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  height: 64px;
+  padding: 0 clamp(16px, 3vw, 48px);
+  background: #fff;
+}
+.team-nav::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: var(--line);
+}
 .tabs {
   display: flex;
   list-style: none;
   padding: 0;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
 }
 .tabs::-webkit-scrollbar {
@@ -93,32 +111,45 @@ body {
 .tab {
   position: relative;
   flex: none;
-  margin-left: -10px;
+  margin-left: -14px;
 }
 .tab:first-child {
   margin-left: 0;
 }
-.tab a {
+.tab a,
+.tab__off {
   display: flex;
   align-items: center;
+  justify-content: center;
   height: 40px;
-  margin-top: 8px;
-  padding: 0 26px 0 22px;
+  min-width: 88px;
+  margin-top: 9px;
+  padding: 0 30px 0 26px;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--muted);
   background: var(--lav);
-  clip-path: polygon(0 100%, 10px 0, calc(100% - 18px) 0, 100% 100%);
+  clip-path: polygon(0 100%, 12px 0, calc(100% - 22px) 0, 100% 100%);
   white-space: nowrap;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    transform 0.2s;
+}
+.tab__off {
+  color: #a79eae;
+  background: #f4f0f6;
+  cursor: not-allowed;
 }
 .tab a:hover {
   color: var(--ink);
   background: var(--tint);
+  transform: translateY(-2px);
 }
 .tab a[aria-current="page"] {
   position: relative;
   z-index: 2;
-  height: 48px;
+  height: 49px;
   margin-top: 0;
   color: var(--ink);
   background: #fff;

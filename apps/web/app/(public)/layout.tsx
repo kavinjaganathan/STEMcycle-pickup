@@ -1,15 +1,10 @@
 import Link from "next/link";
-import { SiteHeader } from "@/components/SiteHeader";
-
-const TABS = [
-  { href: "/", label: "Schedule a pickup", exact: true },
-  { href: "/contact", label: "Contact us" },
-];
+import { TeamNav } from "@/components/TeamNav";
 
 export default function PublicLayout({ children }: LayoutProps<"/">) {
   return (
     <>
-      <SiteHeader tabs={TABS} />
+      <TeamNav />
       <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
         {children}
       </main>

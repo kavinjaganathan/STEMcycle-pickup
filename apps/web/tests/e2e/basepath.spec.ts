@@ -28,10 +28,10 @@ test("everything works under /STEM", async ({ page, request }) => {
   await expect(page.getByRole("heading", { name: "Donate your used textbooks." })).toBeVisible();
   await expectNoAxeViolations(page);
   const nav = page.getByRole("navigation", { name: "Main" });
-  await expect(nav.getByRole("link", { name: "Contact us" })).toHaveAttribute(
-    "href",
-    "/STEM/contact",
-  );
+  await expect(nav.getByRole("link", { name: "StemCycle" })).toHaveAttribute("href", "/STEM");
+  await expect(
+    page.getByRole("contentinfo").getByRole("link", { name: "Contact us" }),
+  ).toHaveAttribute("href", "/STEM/contact");
 
   // Book a pickup through the real form (client fetches must include /STEM).
   const email = `ada-stem-${Date.now()}@example.com`;
