@@ -1,4 +1,5 @@
 import "server-only";
+import { userAgent } from "@/lib/geocode";
 import { log } from "@/lib/logger";
 import type { LatLng } from "./types";
 
@@ -46,6 +47,7 @@ async function osrmLine(points: LatLng[]): Promise<[number, number][]> {
   const base = process.env.OSRM_URL ?? "https://router.project-osrm.org";
   const coords = points.map((p) => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join(";");
   const res = await fetch(`${base}/route/v1/driving/${coords}?overview=full&geometries=geojson`, {
+    headers: { "User-Agent": userAgent() },
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) throw new Error(`osrm route http ${res.status}`);

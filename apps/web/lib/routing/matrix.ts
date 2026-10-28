@@ -1,5 +1,6 @@
 import "server-only";
 import { env } from "@/lib/env";
+import { userAgent } from "@/lib/geocode";
 import { log } from "@/lib/logger";
 import type { LatLng } from "./types";
 
@@ -83,7 +84,8 @@ export async function osrmMatrix(points: LatLng[]): Promise<Matrix> {
     const sources = Array.from({ length: Math.min(block, n - from) }, (_, i) => from + i).join(";");
     const res = await fetch(
       `${base}/table/v1/driving/${coords}?annotations=duration,distance&sources=${sources}`,
-      { signal: AbortSignal.timeout(30_000) },
+      // Workers send no User-Agent by default, and the OSRM demo answers 403 without one.
+      { headers: { "User-Agent": userAgent() }, signal: AbortSignal.timeout(30_000) },
     );
     if (!res.ok) throw new Error(`osrm table http ${res.status}`);
     const data = (await res.json()) as {

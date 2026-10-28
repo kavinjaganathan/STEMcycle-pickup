@@ -39,7 +39,8 @@ export class TemporaryGeocodeError extends Error {}
 
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 
-function userAgent() {
+/** Public map services (Nominatim, the OSRM demo) reject requests without a User-Agent. */
+export function userAgent() {
   const contact = process.env.NOMINATIM_CONTACT_EMAIL ?? process.env.EMAIL_FROM ?? "";
   return `StemCyclePickup/1.0${contact ? ` (${contact})` : ""}`;
 }
