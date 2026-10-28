@@ -5,7 +5,7 @@
   // Secrets (never in this file):  npx wrangler secret put <NAME>
   //   SUPABASE_ANON_KEY  SUPABASE_SERVICE_ROLE_KEY  ADMIN_PASSWORD_HASH
   //   ADMIN_SESSION_SECRET  RATE_LIMIT_SALT  CRON_SECRET  TURNSTILE_SECRET_KEY
-  //   SMTP_PASS (or RESEND_API_KEY)  DRIVER_INVITE_CODE  SOLVER_SECRET  ORS_API_KEY
+  //   RESEND_API_KEY (or SMTP_PASS with EMAIL_PROVIDER smtp)  DRIVER_INVITE_CODE  SOLVER_SECRET  ORS_API_KEY
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "stemcycle-pickup",
   // Same account as the team site (a service binding only works within one account).
@@ -22,13 +22,13 @@
     "APP_URL": "https://ftcoverdrive.org/STEM",
     "NEXT_PUBLIC_BASE_PATH": "/STEM",
     "DATA_BACKEND": "supabase",
-    "SUPABASE_URL": "",
-    "ADMIN_EMAIL": "",
-    "EMAIL_PROVIDER": "smtp",
-    "EMAIL_FROM": "ftcoverdrive17294@gmail.com",
-    "SMTP_USER": "ftcoverdrive17294@gmail.com",
-    "SMTP_HOST": "smtp.gmail.com",
-    "SMTP_PORT": "465",
+    "SUPABASE_URL": "https://cqtyrccofpsvmvkdxkei.supabase.co",
+    "ADMIN_EMAIL": "ftcoverdrive17294@gmail.com",
+    // Sent through Resend from the verified ftcoverdrive.org domain; Contact Us
+    // messages (and the address the Contact page shows) go to the team inbox.
+    "EMAIL_PROVIDER": "resend",
+    "EMAIL_FROM": "pickup@ftcoverdrive.org",
+    "CONTACT_EMAIL": "ftcoverdrive17294@gmail.com",
     "SOLVER_URL": ""
   }
 }
