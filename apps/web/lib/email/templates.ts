@@ -91,7 +91,7 @@ export function confirmationEmail(p: {
 export function driverWelcomeEmail(p: { orgName: string; name: string }) {
   const subject = `Thanks for signing up to drive for ${p.orgName}`;
   const line =
-    "Thanks for signing up to drive. Someone from the team will look over your details and email you once you're approved. After that, you can add the weekend hours you're free.";
+    "Thanks for signing up to drive. Someone from the team will look over your details and email you once you're approved. After that, you can pick the weekend pickup times you can drive.";
   const text = [`Hi ${p.name},`, "", line, "", `— ${p.orgName}`].join("\n");
   const html = layout({
     orgName: p.orgName,
@@ -108,7 +108,7 @@ export function driverApprovedEmail(p: { orgName: string; name: string; appUrl: 
   const text = [
     `Hi ${p.name},`,
     "",
-    "You're approved to drive. Add the weekend hours you're free here:",
+    "You're approved to drive. Pick the weekend pickup times you can cover here:",
     url,
     "",
     `— ${p.orgName}`,
@@ -118,7 +118,7 @@ export function driverApprovedEmail(p: { orgName: string; name: string; appUrl: 
     eyebrow: "Account approved",
     title: "You're ready to drive",
     body: para(
-      `Hi ${p.name}, you're approved to drive. Add the weekend hours you're free, and the app will plan your routes.`,
+      `Hi ${p.name}, you're approved to drive. Pick the weekend pickup times you can cover, and the app will plan your routes.`,
     ),
     button: { href: url, label: "Set my availability" },
   });

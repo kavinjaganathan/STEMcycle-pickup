@@ -46,26 +46,26 @@ describe("create_pickup", () => {
     expect((await book(10, "h", sat, { zip: "10001" })).result).toBe("out_of_area");
   });
 
-  it("caps each hour at drivers x stops per driver-hour, ignoring cancellations", async () => {
-    await db.exec("update settings set stops_per_driver_hour = 1");
-    await addDriver(db, { hours: { [sat]: [10] } });
+  it("books a set pickup time even before any driver signs up", async () => {
     expect((await book(10, "h1")).result).toBe("ok");
-    expect((await book(10, "h2")).result).toBe("slot_full");
-    await addDriver(db, { hours: { [sat]: [10] } });
-    expect((await book(10, "h3")).result).toBe("ok");
-    expect((await book(10, "h4")).result).toBe("slot_full");
+  });
+
+  it("caps each pickup time at the bookings limit, ignoring cancellations", async () => {
+    await db.exec("update settings set slot_limit = 2");
+    expect((await book(10, "h1")).result).toBe("ok");
+    expect((await book(10, "h2")).result).toBe("ok");
+    expect((await book(10, "h3")).result).toBe("slot_full");
+    expect((await book(11, "h4")).result).toBe("ok"); // other times have their own limit
     await repo.cancelPickup("h1");
     expect((await book(10, "h5")).result).toBe("ok");
   });
 
-  it("rejects hours with no active driver, weekdays and locked weekends", async () => {
-    await addDriver(db, { status: "pending", hours: { [sat]: [11] } });
-    await addDriver(db, { hours: { [sat]: [12] } });
-    expect((await book(11, "h1")).result).toBe("slot_unavailable");
-    expect((await book(9, "h2")).result).toBe("slot_unavailable");
-    expect((await book(12, "h3", addDays(sat, -1))).result).toBe("slot_unavailable"); // Friday
+  it("rejects hours that aren't pickup times, weekdays and locked weekends", async () => {
+    await addDriver(db, { hours: { [sat]: [12] } }); // a driver's hours don't open a time
+    expect((await book(12, "h1")).result).toBe("slot_unavailable");
+    expect((await book(10, "h2", addDays(sat, -1))).result).toBe("slot_unavailable"); // Friday
     await db.query("insert into weekends (weekend_date, locked_at) values ($1, now())", [sat]);
-    expect((await book(12, "h4")).result).toBe("slot_unavailable");
+    expect((await book(10, "h3")).result).toBe("slot_unavailable");
   });
 
   it("closes a weekend once its Friday lock time has passed", async () => {
@@ -81,19 +81,18 @@ describe("create_pickup", () => {
 });
 
 describe("available_slots", () => {
-  it("lists weekend hours with an active driver and room left", async () => {
-    await db.exec("update settings set stops_per_driver_hour = 2");
+  it("lists the set pickup times with room left, whatever drivers have chosen", async () => {
+    await db.exec("update settings set sat_hours = '{9,10}', sun_hours = '{13}', slot_limit = 2");
     const sun = addDays(sat, 1);
-    await addDriver(db, { hours: { [sat]: [9, 10], [sun]: [13] } });
-    await addDriver(db, { hours: { [sat]: [10] } });
-    await addDriver(db, { status: "pending", hours: { [sat]: [15] } });
+    await addDriver(db, { hours: { [sat]: [15] } }); // not a pickup time: not offered
     await book(9, "a");
     await book(9, "b"); // 9 AM is now full
+    await book(10, "c");
 
     const slots = await repo.listAvailableSlots(new Date());
     const mine = slots.filter((s) => s.slot_date === sat || s.slot_date === sun);
     expect(mine).toEqual([
-      { slot_date: sat, hour: 10, remaining: 4 },
+      { slot_date: sat, hour: 10, remaining: 1 },
       { slot_date: sun, hour: 13, remaining: 2 },
     ]);
   });

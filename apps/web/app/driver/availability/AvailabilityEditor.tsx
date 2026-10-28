@@ -4,13 +4,7 @@ import { useMemo, useState } from "react";
 import { Button, Notice } from "@/components/ui";
 import { api, errorText } from "@/lib/client/api";
 import type { Availability } from "@/lib/db/driver";
-import {
-  formatBlocks,
-  formatHour,
-  formatHourRange,
-  formatInstant,
-  formatSlotDate,
-} from "@/lib/format";
+import { formatBlocks, formatHourRange, formatInstant, formatSlotDate } from "@/lib/format";
 
 type Hours = Record<string, number[]>; // date -> sorted hours
 
@@ -31,15 +25,6 @@ export function AvailabilityEditor({ initial }: { initial: Availability }) {
     kind: "success" | "error";
     text: string;
   } | null>(null);
-
-  const hourList = useMemo(
-    () =>
-      Array.from(
-        { length: initial.last_hour - initial.first_hour },
-        (_, i) => initial.first_hour + i,
-      ),
-    [initial.first_hour, initial.last_hour],
-  );
 
   const weekends = useMemo(() => {
     const map = new Map<string, Availability["days"]>();
@@ -136,23 +121,36 @@ export function AvailabilityEditor({ initial }: { initial: Availability }) {
                     <p className="mt-1 min-h-6 text-sm text-muted" aria-live="polite">
                       {selected.length ? formatBlocks(selected) : "Not available"}
                     </p>
-                    <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                      {hourList.map((h) => {
+                    {d.slots.length === 0 && (
+                      <p className="mt-3 text-sm text-muted">No pickups this day.</p>
+                    )}
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {d.slots.map(({ hour: h, booked, drivers }) => {
                         const on = selected.includes(h);
+                        const needsDriver = booked > 0 && drivers === 0;
                         return (
                           <button
                             key={h}
                             type="button"
                             aria-pressed={on}
                             aria-label={`${formatHourRange(h)} on ${dayName}`}
+                            aria-describedby={`cover-${d.date}-${h}`}
                             onClick={() => toggle(d.date, h)}
-                            className={`min-h-11 rounded-[2px] border text-sm font-bold transition-colors ${
+                            className={`flex min-h-14 flex-col items-center justify-center rounded-[2px] border px-2 py-1.5 text-sm font-bold transition-colors ${
                               on
                                 ? "border-ink bg-ink text-white"
                                 : "border-field bg-white text-ink hover:border-ink"
                             }`}
                           >
-                            {formatHour(h)}
+                            {formatHourRange(h)}
+                            <span
+                              id={`cover-${d.date}-${h}`}
+                              className={`text-xs font-semibold ${
+                                on ? "text-white/80" : needsDriver ? "text-danger" : "text-muted"
+                              }`}
+                            >
+                              {coverText(booked, drivers)}
+                            </span>
                           </button>
                         );
                       })}
@@ -194,4 +192,11 @@ function addDays(date: string, n: number) {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
+}
+
+/** "3 booked · needs a driver", counting drivers as saved (not this unsaved tap). */
+function coverText(booked: number, drivers: number) {
+  const b = `${booked} booked`;
+  if (drivers === 0) return booked > 0 ? `${b} · needs a driver` : b;
+  return `${b} · ${drivers} ${drivers === 1 ? "driver" : "drivers"}`;
 }

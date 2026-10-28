@@ -3,7 +3,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { createLocalDb } from "@/lib/db/pglite";
 import { createDriverApi } from "@/lib/db/driver";
 import { createRepo, pgRpc } from "@/lib/db/repo";
-import { addDays, addDriver, openSaturday } from "./helpers";
+import { addDays, addDriver, openSaturday, pickupInput } from "./helpers";
 
 let db: PGlite;
 let sat: string;
@@ -20,18 +20,34 @@ describe("driver availability", () => {
     const id = await addDriver(db);
     const api = asDriver(id);
     const before = await api.availability();
-    expect(before).toMatchObject({ timezone: "America/Chicago", first_hour: 8, last_hour: 18 });
+    expect(before).toMatchObject({ timezone: "America/Chicago" });
     expect(before.days.length).toBe(8); // 4 weekends x Sat/Sun
-    expect(before.days[0]).toMatchObject({ date: sat, hours: [] });
+    // Each day lists the set pickup times (Sat 10 and 11, Sun 1 and 2 PM by default).
+    expect(before.days[0]).toMatchObject({
+      date: sat,
+      hours: [],
+      slots: [
+        { hour: 10, booked: 0, drivers: 0 },
+        { hour: 11, booked: 0, drivers: 0 },
+      ],
+    });
+    expect(before.days[1].slots.map((s) => s.hour)).toEqual([13, 14]);
 
-    await api.setAvailability(sat, [12, 10, 11, 10]);
-    await api.setAvailability(sat, [10, 11]);
+    await api.setAvailability(sat, [11, 10, 11]);
+    await api.setAvailability(sat, [11]);
+    await createRepo(pgRpc(db)).createPickup(
+      pickupInput({ slot_date: sat, slot_hour: 10 }),
+      "t1",
+      new Date(),
+    );
     const after = await api.availability();
-    expect(after.days.find((d) => d.date === sat)?.hours).toEqual([10, 11]);
-
-    // Residents now see those hours.
-    const slots = await createRepo(pgRpc(db)).listAvailableSlots(new Date());
-    expect(slots.filter((s) => s.slot_date === sat).map((s) => s.hour)).toEqual([10, 11]);
+    const day = after.days.find((d) => d.date === sat)!;
+    expect(day.hours).toEqual([11]);
+    // Drivers see where bookings are and which times still need someone.
+    expect(day.slots).toEqual([
+      { hour: 10, booked: 1, drivers: 0 },
+      { hour: 11, booked: 0, drivers: 1 },
+    ]);
 
     const { rows } = await db.query<{ dirty: boolean }>(
       "select dirty_at is not null as dirty from weekends where weekend_date = $1",
@@ -40,10 +56,10 @@ describe("driver availability", () => {
     expect(rows).toEqual([{ dirty: true }]);
   });
 
-  it("rejects hours outside the pickup day, locked weekends and weekdays", async () => {
+  it("rejects hours that aren't pickup times, locked weekends and weekdays", async () => {
     const api = asDriver(await addDriver(db));
     await expect(api.setAvailability(sat, [7])).rejects.toThrow("hours_out_of_range");
-    await expect(api.setAvailability(sat, [18])).rejects.toThrow("hours_out_of_range");
+    await expect(api.setAvailability(sat, [10, 12])).rejects.toThrow("hours_out_of_range");
     await expect(api.setAvailability(addDays(sat, -1), [10])).rejects.toThrow(
       "availability_locked",
     );

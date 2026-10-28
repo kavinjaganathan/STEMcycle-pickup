@@ -42,9 +42,9 @@ export const settingsSchema = z
     reply_to: z.union([z.literal(""), z.email()]).nullable(),
     retention_days: int(7, 3650),
     booking_weekends: int(1, 12),
-    first_hour: int(0, 23),
-    last_hour: int(1, 24),
-    stops_per_driver_hour: int(1, 20),
+    sat_hours: z.array(int(0, 23)).max(24),
+    sun_hours: z.array(int(0, 23)).max(24),
+    slot_limit: int(1, 100),
     lock_time: z.string().regex(TIME_RE, "Use HH:MM."),
     books_per_box: int(1, 200),
     service_min_base: int(0, 60),
@@ -56,9 +56,9 @@ export const settingsSchema = z
     depot_lat: z.number().min(-90).max(90).nullable(),
     depot_lng: z.number().min(-180).max(180).nullable(),
   })
-  .refine((s) => s.last_hour > s.first_hour, {
-    message: "The last hour must be after the first hour.",
-    path: ["last_hour"],
+  .refine((s) => s.sat_hours.length + s.sun_hours.length > 0, {
+    message: "Choose at least one pickup time.",
+    path: ["sat_hours"],
   });
 
 /** A weekend is identified by its Saturday. */

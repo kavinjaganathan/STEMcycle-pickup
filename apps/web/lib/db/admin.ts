@@ -52,9 +52,9 @@ export type OrgSettings = {
   reply_to: string | null;
   retention_days: number;
   booking_weekends: number;
-  first_hour: number;
-  last_hour: number;
-  stops_per_driver_hour: number;
+  sat_hours: number[];
+  sun_hours: number[];
+  slot_limit: number;
   lock_time: string;
   books_per_box: number;
   service_min_base: number;

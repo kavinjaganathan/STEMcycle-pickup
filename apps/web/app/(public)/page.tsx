@@ -7,10 +7,7 @@ import { TEXTBOOK_LABEL } from "@/lib/format";
 import { TEXTBOOK_TYPES } from "@/lib/shared";
 
 const STEPS = [
-  [
-    "Pick a time",
-    "Choose an open hour on a Saturday or Sunday. You'll only see times when one of our drivers is free.",
-  ],
+  ["Pick a time", "Choose one of our pickup hours on Saturday or Sunday."],
   [
     "Put the books out",
     "Box or bag them and leave them by your front door before your hour starts. If something comes up, there's a cancel link in your confirmation email.",

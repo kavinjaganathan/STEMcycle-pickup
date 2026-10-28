@@ -32,7 +32,7 @@ beforeEach(async () => {
   db = await createLocalDb();
   const sat = await openSaturday(db);
   await addDriver(db, { hours: { [sat]: [10] } });
-  await db.exec("update settings set stops_per_driver_hour = 10");
+  await db.exec("update settings set slot_limit = 10");
   slot = `${sat}T10`;
   sent = [];
   deps = {

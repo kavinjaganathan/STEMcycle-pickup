@@ -123,8 +123,7 @@ export function PickupForm({
   if (slots.length === 0) {
     return (
       <p role="status" className="leading-relaxed">
-        There aren&apos;t any open pickup times right now. New times show up when our drivers add
-        their weekend hours, so check back in a few days, or{" "}
+        There aren&apos;t any open pickup times right now. Check back in a few days, or{" "}
         <a href={withBase("/contact")} className="font-bold underline underline-offset-4">
           contact us
         </a>
@@ -236,7 +235,7 @@ export function PickupForm({
       >
         <legend className="mb-1 text-xl font-extrabold tracking-tight">Pickup time</legend>
         <p id="slot-hint" className="text-sm text-muted">
-          Pickups are on Saturdays and Sundays. Each time is a 1-hour window when a driver is free.
+          Pickups are on Saturdays and Sundays. Each time is a 1-hour window.
         </p>
         <div role="group" aria-label="Day">
           <p className="mb-2 text-sm font-bold" aria-hidden="true">

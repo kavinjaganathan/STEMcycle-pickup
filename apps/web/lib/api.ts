@@ -19,7 +19,7 @@ const APP_ERRORS: Record<string, string> = {
   not_found: "That item no longer exists.",
   invalid_location: "That location isn't valid.",
   availability_locked: "That weekend is locked: routes are final. Ask the admin to make changes.",
-  hours_out_of_range: "Those hours are outside the pickup day.",
+  hours_out_of_range: "Those aren't pickup times. Reload the page to see the current ones.",
   driver_not_active: "That driver isn't active.",
   pickup_cancelled: "The resident cancelled this pickup.",
   stop_not_yours: "That stop isn't on your route.",

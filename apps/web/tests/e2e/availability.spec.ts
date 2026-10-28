@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures";
-import { expectNoAxeViolations, signInAs, type Slot } from "./helpers";
+import { expectNoAxeViolations, signInAs } from "./helpers";
 
-test("a driver's hours become bookable slots", async ({ page }, info) => {
+test("drivers pick from the set pickup times and see who covers each", async ({ page }, info) => {
   await signInAs(page, "Sam Driver");
   await page
     .getByRole("navigation", { name: "Main" })
@@ -10,32 +10,26 @@ test("a driver's hours become bookable slots", async ({ page }, info) => {
   await expect(page.getByRole("heading", { name: "When can you drive?" })).toBeVisible();
   await expectNoAxeViolations(page);
 
-  // Sam has no Sunday hours in the seed. Add 4–6 PM on the second weekend's Sunday.
+  // Only the set Sunday times are offered (1, 2 and 3 PM in the dev data), not every hour.
   const sunday = page.getByRole("group", { name: /^Sunday/ }).nth(1);
   const dayName = (await sunday.getAttribute("aria-label"))!;
-  const hour = info.project.name === "mobile" ? 16 : 17; // projects share one database
-  const label = hour === 16 ? "4 – 5 PM" : "5 – 6 PM";
-  await sunday.getByRole("button", { name: `${label} on ${dayName}` }).click();
-  await expect(sunday.getByRole("button", { name: `${label} on ${dayName}` })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(sunday.getByRole("button")).toHaveCount(3);
+
+  // Dana already covers Sunday afternoons; Sam joins one time (projects share one database).
+  const label = info.project.name === "mobile" ? "1 – 2 PM" : "2 – 3 PM";
+  const time = sunday.getByRole("button", { name: `${label} on ${dayName}` });
+  await expect(time).toContainText("1 driver");
+  await time.click();
+  await expect(time).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Unsaved changes")).toBeVisible();
   await page.getByRole("button", { name: "Save weekend" }).nth(1).click();
   await expect(page.getByText("Saved.")).toBeVisible();
 
-  const { slots } = (await (await page.request.get("/api/slots/available")).json()) as {
-    slots: Slot[];
-  };
-  expect(
-    slots.some((s) => new Date(`${s.slot_date}T12:00:00Z`).getUTCDay() === 0 && s.hour === hour),
-  ).toBe(true);
-
   await page.reload();
-  await expect(
-    page
-      .getByRole("group", { name: /^Sunday/ })
-      .nth(1)
-      .getByRole("button", { name: `${label} on ${dayName}` }),
-  ).toHaveAttribute("aria-pressed", "true");
+  const after = page
+    .getByRole("group", { name: /^Sunday/ })
+    .nth(1)
+    .getByRole("button", { name: `${label} on ${dayName}` });
+  await expect(after).toHaveAttribute("aria-pressed", "true");
+  await expect(after).toContainText("2 drivers");
 });

@@ -21,7 +21,11 @@ const MIN = 60_000;
 beforeEach(async () => {
   db = await createLocalDb({ seed: false });
   await db.exec(
-    "update settings set depot_lat = 33.1497, depot_lng = -96.8226, depot_name = 'Depot', stops_per_driver_hour = 10",
+    "update settings set depot_lat = 33.1497, depot_lng = -96.8226, depot_name = 'Depot'",
+  );
+  // Open every daytime hour so these tests can book whatever hours they need.
+  await db.exec(
+    "update settings set sat_hours = '{8,9,10,11,12,13,14,15,16,17}', sun_hours = '{8,9,10,11,12,13,14,15,16,17}', slot_limit = 50",
   );
   repo = createRepo(pgRpc(db));
   sat = await openSaturday(db);

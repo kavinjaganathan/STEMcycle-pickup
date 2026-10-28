@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 const STEPS = [
   ["Sign up", "Tell us your name, phone and how many boxes your vehicle holds."],
   ["Get approved", "Someone on the StemCycle team checks your details and turns on your account."],
-  ["Add your hours", "Mark the weekend hours you can drive, like Saturday 10 to 1."],
+  ["Pick your times", "Choose which of the weekend pickup times you can drive."],
   ["Follow your route", "The app puts your stops in order. Open it on your phone and go."],
 ] as const;
 

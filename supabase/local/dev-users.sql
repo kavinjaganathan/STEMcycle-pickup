@@ -10,6 +10,9 @@ update profiles set full_name = 'Sam Driver', phone = '9725550102', capacity_box
 update profiles set full_name = 'Pat Pending', phone = '9725550103', capacity_boxes = 10
   where id = '00000000-0000-4000-8000-000000000004';
 
+-- Demo pickup times that line up with the drivers' hours below.
+update settings set sat_hours = '{9,10,11,12,13}', sun_hours = '{13,14,15}' where id;
+
 -- Availability for the next four weekends: Dana Sat 9-1 and Sun 1-4, Sam Sat 10-2.
 insert into driver_hours (driver_id, avail_date, hour)
 select '00000000-0000-4000-8000-000000000002'::uuid, d::date, h

@@ -2,13 +2,15 @@ import type { PickupStatus } from "@/lib/shared";
 import type { Rpc } from "./repo";
 import type { Depot, PlanRoute, PlanStop } from "./routing";
 
-export type AvailabilityDay = { date: string; lock_at: string; hours: number[] };
-export type Availability = {
-  timezone: string;
-  first_hour: number;
-  last_hour: number;
-  days: AvailabilityDay[];
+/** One of the set pickup hours: bookings so far and how many drivers cover it. */
+export type SlotCover = { hour: number; booked: number; drivers: number };
+export type AvailabilityDay = {
+  date: string;
+  lock_at: string;
+  hours: number[];
+  slots: SlotCover[];
 };
+export type Availability = { timezone: string; days: AvailabilityDay[] };
 
 export type DriverStop = PlanStop;
 export type DriverRoute = PlanRoute;

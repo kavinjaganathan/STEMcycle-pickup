@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button, Card, Field, inputClass, Notice, PageHeader, Spinner } from "@/components/ui";
 import { api, errorText } from "@/lib/client/api";
+import { formatHour, formatHourRange } from "@/lib/format";
 import type { OrgSettings } from "@/lib/db/admin";
 import { useLoad } from "./useLoad";
 
@@ -15,12 +16,10 @@ const SECTIONS: { title: string; intro?: string; fields: [NumKey, string, string
     title: "Bookings and availability",
     fields: [
       ["booking_weekends", "Weekends open for booking"],
-      ["first_hour", "First pickup hour (0–23)", "Drivers can choose hours from here…"],
-      ["last_hour", "Pickups end at hour (1–24)", "…up to here. 18 means the last slot is 5–6 PM."],
       [
-        "stops_per_driver_hour",
-        "Bookings per driver per hour",
-        "Each available driver adds this many bookings to an hour.",
+        "slot_limit",
+        "Bookings per pickup time",
+        "A time stops showing on the form once it has this many bookings.",
       ],
       ["retention_days", "Delete personal details after (days)", "Counted from the pickup date."],
     ],
@@ -173,6 +172,13 @@ function SettingsForm({
           <Card key={sec.title}>
             <h2 className="mb-1 text-xl font-extrabold tracking-tight">{sec.title}</h2>
             {sec.intro && <p className="mb-4 text-sm text-muted">{sec.intro}</p>}
+            {sec.title === "Bookings and availability" && (
+              <PickupTimes
+                sat={s.sat_hours}
+                sun={s.sun_hours}
+                onChange={(sat_hours, sun_hours) => setS({ ...s, sat_hours, sun_hours })}
+              />
+            )}
             <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {sec.fields.map(([k, label, hint]) => (
                 <Field key={k} label={label} hint={hint}>
@@ -258,5 +264,70 @@ function SettingsForm({
         </Button>
       </form>
     </>
+  );
+}
+
+const HOUR_CHOICES = Array.from({ length: 13 }, (_, i) => 7 + i); // 7 AM to 7 PM starts
+
+/**
+ * The fixed 1-hour pickup times residents can book. Drivers choose from these
+ * same times, so keep the list short and close together.
+ */
+function PickupTimes({
+  sat,
+  sun,
+  onChange,
+}: {
+  sat: number[];
+  sun: number[];
+  onChange: (sat: number[], sun: number[]) => void;
+}) {
+  const toggle = (list: number[], h: number) =>
+    (list.includes(h) ? list.filter((x) => x !== h) : [...list, h]).sort((a, b) => a - b);
+  const days = [
+    { name: "Saturday", hours: sat, set: (h: number) => onChange(toggle(sat, h), sun) },
+    { name: "Sunday", hours: sun, set: (h: number) => onChange(sat, toggle(sun, h)) },
+  ];
+  return (
+    <div className="mt-3 space-y-4">
+      <div>
+        <h3 className="font-bold">Pickup times</h3>
+        <p className="text-sm text-muted">
+          Residents can book these whether or not a driver has signed up yet. Drivers then pick
+          which ones they can cover.
+        </p>
+      </div>
+      {days.map((d) => (
+        <div key={d.name} role="group" aria-label={`${d.name} pickup times`}>
+          <p className="mb-2 text-sm font-bold">
+            {d.name}
+            <span className="ml-2 font-normal text-muted">
+              {d.hours.length ? d.hours.map((h) => formatHourRange(h)).join(", ") : "No pickups"}
+            </span>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {HOUR_CHOICES.map((h) => {
+              const on = d.hours.includes(h);
+              return (
+                <button
+                  key={h}
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={`${formatHourRange(h)} on ${d.name}`}
+                  onClick={() => d.set(h)}
+                  className={`min-h-11 min-w-16 rounded-[2px] border px-2 text-sm font-bold transition-colors ${
+                    on
+                      ? "border-ink bg-ink text-white"
+                      : "border-field bg-white text-ink hover:border-ink"
+                  }`}
+                >
+                  {formatHour(h)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

@@ -89,13 +89,14 @@ test("home page has no axe violations and no horizontal scroll", async ({ page }
   expect(overflow).toBe(false);
 });
 
-test("only weekend hours with an available driver are offered", async ({ request }) => {
+test("only the set weekend pickup times are offered", async ({ request }) => {
   const { slots } = await (await request.get("/api/slots/available")).json();
   expect(slots.length).toBeGreaterThan(0);
+  // Dev data: Saturday 9 AM to 2 PM, Sunday 1 to 4 PM.
+  const times: Record<number, number[]> = { 6: [9, 10, 11, 12, 13], 0: [13, 14, 15] };
   for (const s of slots as { slot_date: string; hour: number }[]) {
-    expect([0, 6]).toContain(new Date(`${s.slot_date}T12:00:00Z`).getUTCDay());
-    expect(s.hour).toBeGreaterThanOrEqual(8);
-    expect(s.hour).toBeLessThan(18);
+    const day = new Date(`${s.slot_date}T12:00:00Z`).getUTCDay();
+    expect(times[day]).toContain(s.hour);
   }
 });
 
